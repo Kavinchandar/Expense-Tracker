@@ -10,6 +10,8 @@ from typing import Any
 import pdfplumber
 from dateutil import parser as du_parser
 
+from services.icici_statement_parser import extract_icici_rows_from_pdf_text
+
 # Lines that are usually headers / footers, not transactions
 _SKIP_LINE = re.compile(
     r"^(date\s+desc|posting\s+date|transaction\s+date|balance|"
@@ -63,36 +65,41 @@ def _skip_line(line: str) -> bool:
 
 def extract_transaction_lines_from_pdf(file_bytes: bytes) -> list[dict[str, Any]]:
     """
-    Best-effort parse: each line should look like ``DATE  DESCRIPTION  AMOUNT``.
-    Works for many text-based statements; scanned image PDFs need OCR first.
+    Detects known bank layouts first (e.g. ICICI savings ``Statement of Transactions``),
+    then falls back to generic ``DATE  DESCRIPTION  AMOUNT`` single-line rows.
+    Scanned image PDFs need OCR first.
     """
+    with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
+        full_text = "\n".join((p.extract_text() or "") for p in pdf.pages)
+
+    icici_rows = extract_icici_rows_from_pdf_text(full_text)
+    if icici_rows:
+        return icici_rows
+
     rows: list[dict[str, Any]] = []
     seen: set[str] = set()
 
-    with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
-        for page in pdf.pages:
-            text = page.extract_text() or ""
-            for line in text.splitlines():
-                if _skip_line(line):
-                    continue
-                for pat in LINE_PATTERNS:
-                    m = pat.match(line.strip())
-                    if not m:
-                        continue
-                    try:
-                        d = _parse_date(m.group(1))
-                        desc = m.group(2).strip()
-                        amt = _parse_amount(m.group(3))
-                    except (ValueError, TypeError, du_parser.ParserError):
-                        continue
-                    if len(desc) < 2:
-                        continue
-                    key = f"{d.isoformat()}|{amt:.2f}|{desc[:240]}"
-                    if key in seen:
-                        continue
-                    seen.add(key)
-                    rows.append({"date": d, "description": desc, "amount": amt})
-                    break
+    for line in full_text.splitlines():
+        if _skip_line(line):
+            continue
+        for pat in LINE_PATTERNS:
+            m = pat.match(line.strip())
+            if not m:
+                continue
+            try:
+                d = _parse_date(m.group(1))
+                desc = m.group(2).strip()
+                amt = _parse_amount(m.group(3))
+            except (ValueError, TypeError, du_parser.ParserError):
+                continue
+            if len(desc) < 2:
+                continue
+            key = f"{d.isoformat()}|{amt:.2f}|{desc[:240]}"
+            if key in seen:
+                continue
+            seen.add(key)
+            rows.append({"date": d, "description": desc, "amount": amt})
+            break
 
     rows.sort(key=lambda r: (r["date"], r["description"]))
     return rows

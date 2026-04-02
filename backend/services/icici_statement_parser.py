@@ -1,11 +1,14 @@
 """
 ICICI Bank 'Statement of Transactions' (savings) PDFs.
 
-Text extraction yields multi-line UPI remarks followed by a summary line::
+Extracted text interleaves multi-line UPI remarks with summary lines::
 
     UPI/SWIGGY/upiswiggy@icic/Payment fo/ICICI
     1 01.03.2026 284.00 732671.54
     Bank/109285776653/ICI32dc330833934f5d997e1b
+    36665931fe/
+    UPI/Licious/Licious@icici/UPI Collec/ICICI
+    2 01.03.2026 234.00 732437.54
 """
 
 from __future__ import annotations
@@ -56,7 +59,6 @@ def _is_noise_line(line: str) -> bool:
     for sub in _NOISE_SUBSTRINGS:
         if sub in low:
             return True
-    # Page index lines (1–3 digits only)
     if re.fullmatch(r"\d{1,3}", s):
         return True
     return False
@@ -70,7 +72,7 @@ def _money(s: str) -> float:
     return float(s.replace(",", ""))
 
 
-def _normalize_desc(parts: list[str]) -> str:
+def _norm(parts: list[str]) -> str:
     return " ".join(p.strip() for p in parts if p.strip())
 
 
@@ -78,12 +80,20 @@ def parse_icici_savings_statement_text(text: str) -> list[dict[str, Any]]:
     """
     Parse concatenated PDF text from an ICICI savings transaction statement.
 
-    Amount sign: withdrawals (balance drops) are negative; deposits positive.
-    The first row assumes a withdrawal if it matches the usual pattern; otherwise
-    balance deltas are used.
+    Withdrawals (balance drops) are negative amounts; deposits are positive.
     """
-    remark_lines: list[str] = []
-    anchors: list[tuple[int, date, float, float, str]] = []
+    pending_pre: list[str] = []
+    pending_post: list[str] = []
+    anchors: list[tuple[int, date, float, float]] = []
+    descriptions: list[str] = []
+    seen_anchor = False
+
+    def flush_post_to_last() -> None:
+        if descriptions and pending_post:
+            extra = _norm(pending_post)
+            if extra:
+                descriptions[-1] = (descriptions[-1] + " " + extra).strip()
+            pending_post.clear()
 
     for raw in text.splitlines():
         line = raw.strip()
@@ -92,25 +102,43 @@ def parse_icici_savings_statement_text(text: str) -> list[dict[str, Any]]:
 
         m = _ICICI_ANCHOR.match(line)
         if m:
-            sno = int(m.group(1))
-            d = _parse_icici_date(m.group(2), m.group(3), m.group(4))
-            mid = _money(m.group(5))
-            bal = _money(m.group(6))
-            desc = _normalize_desc(remark_lines)
-            remark_lines = []
-            if len(desc) < 3:
-                desc = f"Transaction {sno}"
-            anchors.append((sno, d, mid, bal, desc))
-        else:
-            remark_lines.append(line)
+            seen_anchor = True
+            flush_post_to_last()
+            desc = _norm(pending_pre)
+            pending_pre = []
+            if len(desc) < 2:
+                desc = f"Transaction {m.group(1)}"
+            descriptions.append(desc)
+            anchors.append(
+                (
+                    int(m.group(1)),
+                    _parse_icici_date(m.group(2), m.group(3), m.group(4)),
+                    _money(m.group(5)),
+                    _money(m.group(6)),
+                )
+            )
+            continue
 
-    if not anchors:
+        if not seen_anchor:
+            if line.upper().startswith("UPI/"):
+                pending_pre.append(line)
+            continue
+
+        if line.upper().startswith("UPI/"):
+            flush_post_to_last()
+            pending_pre.append(line)
+        else:
+            pending_post.append(line)
+
+    flush_post_to_last()
+
+    if not anchors or len(descriptions) != len(anchors):
         return []
 
     rows: list[dict[str, Any]] = []
     prev_bal: float | None = None
 
-    for i, (_sno, d, mid, bal, desc) in enumerate(anchors):
+    for i, ((_sno, d, mid, bal), desc) in enumerate(zip(anchors, descriptions)):
         if i == 0:
             if len(anchors) >= 2:
                 b0, b1, m1 = anchors[0][3], anchors[1][3], anchors[1][2]
@@ -118,8 +146,10 @@ def parse_icici_savings_statement_text(text: str) -> list[dict[str, Any]]:
                     signed = -mid
                 elif abs((b0 + mid) - b1) < 0.02:
                     signed = mid
+                elif abs((b0 + mid - m1) - b1) < 0.02:
+                    signed = mid
                 else:
-                    signed = bal - (bal + mid)
+                    signed = -mid
             else:
                 signed = -mid
         else:

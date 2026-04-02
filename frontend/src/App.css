@@ -1,5 +1,5 @@
 .app {
-  max-width: 52rem;
+  max-width: 64rem;
   margin: 0 auto;
   padding: 2rem 1.25rem 4rem;
 }
@@ -190,5 +190,123 @@
   border-radius: 6px;
   border: 1px solid #d8d4cc;
   background: #faf9f6;
-  max-width: 11rem;
+  max-width: 12rem;
+  width: 100%;
+}
+
+.tx-list-hint {
+  margin: 0.5rem 0 0;
+  font-size: 0.88rem;
+  max-width: 40rem;
+}
+
+.tx-count {
+  font-weight: 400;
+}
+
+.tx-table-wrap {
+  margin-top: 1rem;
+  overflow-x: auto;
+  border: 1px solid #e8e4dc;
+  border-radius: 8px;
+  background: #fdfcfa;
+}
+
+.tx-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+}
+
+.tx-table th,
+.tx-table td {
+  text-align: left;
+  padding: 0.45rem 0.65rem;
+  border-bottom: 1px solid #efe9e0;
+  vertical-align: top;
+}
+
+.tx-table th {
+  color: #6e6b66;
+  font-weight: 600;
+  background: #f5f2ec;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.tx-table tbody tr:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.tx-table .col-date {
+  white-space: nowrap;
+  width: 6.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.tx-table .col-amt {
+  white-space: nowrap;
+  width: 7rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.tx-table .col-cat {
+  width: 11rem;
+}
+
+.tx-desc-text {
+  display: block;
+  word-break: break-word;
+  line-height: 1.35;
+}
+
+.tx-amt {
+  text-align: right;
+}
+
+.bucket-summary {
+  margin-top: 1.25rem;
+  padding: 0.75rem 0 0;
+  border-top: 1px solid #e8e4dc;
+}
+
+.bucket-summary summary {
+  cursor: pointer;
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: #3d3a35;
+  list-style: none;
+}
+
+.bucket-summary summary::-webkit-details-marker {
+  display: none;
+}
+
+.bucket-summary-list {
+  list-style: none;
+  padding: 0.75rem 0 0;
+  margin: 0;
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.88rem;
+}
+
+.bucket-summary-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid #f2ede6;
+}
+
+.bucket-summary-name {
+  font-weight: 500;
+}
+
+.bucket-summary-meta {
+  font-variant-numeric: tabular-nums;
+  color: #5c5a55;
+  white-space: nowrap;
 }
