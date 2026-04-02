@@ -40,6 +40,8 @@ def test_parse_icici_merges_remarks_and_tail():
     assert "109285776653" in by_amt[-284.0]["description"]
     assert "36665931fe" in by_amt[-284.0]["description"]
     assert "Licious" in by_amt[-234.0]["description"]
+    assert by_amt[-284.0]["balance_after"] == 732671.54
+    assert by_amt[-234.0]["balance_after"] == 732437.54
 
 
 def test_parse_icici_deposit_via_balance_delta():
@@ -55,6 +57,9 @@ def test_parse_icici_deposit_via_balance_delta():
     amounts = sorted(r["amount"] for r in rows)
     assert amounts[0] == -230.0
     assert amounts[1] == pytest.approx(2500.0)
+    by_amt = {r["amount"]: r for r in rows}
+    assert by_amt[-230.0]["balance_after"] == 730232.54
+    assert by_amt[2500.0]["balance_after"] == 732732.54
 
 
 def test_extract_wrapper_returns_empty_for_non_icici():

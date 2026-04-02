@@ -5,6 +5,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from data.models import MonthlyBudget  # noqa: F401
 from db import Base
 
 

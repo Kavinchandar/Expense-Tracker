@@ -22,6 +22,10 @@ def get_transactions(
         year=result.year,
         month=result.month,
         month_total=result.month_total,
+        total_inflow=result.total_inflow,
+        total_outflow=result.total_outflow,
+        opening_balance=result.opening_balance,
+        closing_balance=result.closing_balance,
         buckets=result.buckets,
         display_timezone=result.display_timezone,
     )

@@ -23,4 +23,5 @@ async def upload_statement(
         ok=True,
         upload_id=result.upload_id,
         parsed_count=result.parsed_count,
+        skipped_duplicates=result.skipped_duplicates,
     )

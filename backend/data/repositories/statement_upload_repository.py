@@ -23,12 +23,14 @@ class StatementUploadRepository:
         self._session.flush()
 
         for row in parsed_rows:
+            bal = row.get("balance_after")
             self._session.add(
                 StoredTransaction(
                     upload_id=upload.id,
                     posted_date=row["date"],
                     description=row["description"][:1024],
                     amount=row["amount"],
+                    balance_after=bal if bal is not None else None,
                     category="UNCATEGORIZED",
                 )
             )

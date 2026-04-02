@@ -194,6 +194,51 @@
   width: 100%;
 }
 
+.tx-period-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 0.65rem 1.25rem;
+  margin: 1rem 0 0;
+  padding: 0.75rem 0.85rem;
+  background: #f7f5f0;
+  border: 1px solid #e8e4dc;
+  border-radius: 8px;
+  font-size: 0.88rem;
+}
+
+.tx-period-summary dt {
+  margin: 0;
+  color: #6e6b66;
+  font-weight: 500;
+  font-size: 0.8rem;
+}
+
+.tx-period-summary dd {
+  margin: 0.15rem 0 0;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.tx-sort-row {
+  margin: 0.85rem 0 0;
+  font-size: 0.9rem;
+}
+
+.tx-sort-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.tx-sort-select {
+  font-size: 0.88rem;
+  padding: 0.3rem 0.45rem;
+  border-radius: 6px;
+  border: 1px solid #d8d4cc;
+  background: #faf9f6;
+}
+
 .tx-list-hint {
   margin: 0.5rem 0 0;
   font-size: 0.88rem;
@@ -309,4 +354,235 @@
   font-variant-numeric: tabular-nums;
   color: #5c5a55;
   white-space: nowrap;
+}
+
+.budget-dashboard-title {
+  margin: 0 0 0.35rem;
+  font-size: 1.2rem;
+}
+
+.budget-dashboard-lede {
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+  max-width: 42rem;
+}
+
+.bucket-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.bucket-card {
+  border: 1px solid #e4dfd6;
+  border-radius: 8px;
+  padding: 0.65rem 0.75rem;
+  background: #faf9f6;
+}
+
+.bucket-card--over {
+  border-color: #c4a09a;
+  background: #fdf6f4;
+}
+
+.bucket-card--inflow {
+  border-color: #b8c9b9;
+  background: #f4faf5;
+}
+
+.bucket-card-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #3d3a35;
+  line-height: 1.25;
+  margin-bottom: 0.35rem;
+}
+
+.bucket-card-figures {
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.bucket-card-spent {
+  font-weight: 600;
+  color: #2c2a26;
+}
+
+.bucket-card-budget {
+  color: #6e6b66;
+}
+
+.bucket-card-sep {
+  color: #a39e96;
+}
+
+.bucket-card-bar {
+  margin-top: 0.45rem;
+  height: 6px;
+  border-radius: 3px;
+  background: #e8e4dc;
+  overflow: hidden;
+}
+
+.bucket-card-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: #5c7a62;
+  max-width: 100%;
+}
+
+.bucket-card--over .bucket-card-bar-fill {
+  background: #a05048;
+}
+
+.bucket-card-note {
+  margin: 0.35rem 0 0;
+  font-size: 0.78rem;
+}
+
+.chart-block {
+  margin-top: 1.25rem;
+}
+
+.chart-block-title {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.chart-wrap {
+  width: 100%;
+  min-height: 320px;
+}
+
+.chart-wrap--narrow {
+  min-height: 220px;
+}
+
+.budget-edit {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e8e4dc;
+}
+
+.budget-edit summary {
+  cursor: pointer;
+  font-weight: 500;
+  margin-bottom: 0.75rem;
+}
+
+.budget-edit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: 0.65rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.budget-edit-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.88rem;
+}
+
+.budget-edit-label {
+  color: #5c5a55;
+}
+
+.budget-edit-input {
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #d8d4cc;
+  font-variant-numeric: tabular-nums;
+}
+
+.budget-save {
+  margin-top: 0.25rem;
+}
+
+.css-bar-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-top: 0.5rem;
+}
+
+.css-bar-chart--inflow {
+  max-width: 28rem;
+}
+
+.css-bar-chart-row {
+  display: grid;
+  grid-template-columns: minmax(7rem, 11rem) 1fr;
+  gap: 0.5rem 0.75rem;
+  align-items: start;
+}
+
+@media (max-width: 640px) {
+  .css-bar-chart-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.css-bar-chart-label {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #3d3a35;
+  line-height: 1.3;
+  padding-top: 0.2rem;
+}
+
+.css-bar-chart-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.css-bar-pair {
+  display: grid;
+  grid-template-columns: 3.5rem 1fr 4rem;
+  gap: 0.35rem;
+  align-items: center;
+  font-size: 0.78rem;
+}
+
+.css-bar-legend {
+  color: #6e6b66;
+}
+
+.css-bar-track {
+  height: 10px;
+  border-radius: 5px;
+  background: #ebe6de;
+  overflow: hidden;
+}
+
+.css-bar-fill {
+  height: 100%;
+  border-radius: 5px;
+  min-width: 2px;
+  transition: width 0.2s ease;
+}
+
+.css-bar-fill--budget {
+  background: #c9bfb0;
+}
+
+.css-bar-fill--spent {
+  background: #2c2a26;
+}
+
+.css-bar-fill--inflow-target {
+  background: #7a9e7e;
+}
+
+.css-bar-fill--inflow-received {
+  background: #2d4a32;
+}
+
+.css-bar-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: #3d3a35;
 }

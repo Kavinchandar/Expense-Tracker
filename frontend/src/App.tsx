@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  getBudgets,
   getCategories,
   getTransactions,
+  setTransactionCategory,
   uploadStatement,
 } from "./api";
 import type { TransactionsPayload } from "./api";
+import { mergeCategoryChange } from "./groupBuckets";
+import { BudgetDashboard } from "./components/BudgetDashboard";
 import { BucketList } from "./components/BucketList";
 import { MonthPicker } from "./components/MonthPicker";
 import "./App.css";
@@ -27,6 +31,10 @@ export default function App() {
   const [txLoading, setTxLoading] = useState(false);
   const [txError, setTxError] = useState<string | null>(null);
   const [categories, setCategories] = useState<string[]>([]);
+  const [categoryLabels, setCategoryLabels] = useState<Record<string, string>>(
+    {}
+  );
+  const [budgets, setBudgets] = useState<Record<string, number>>({});
   const [uploadMsg, setUploadMsg] = useState<string | null>(null);
   const [uploadErr, setUploadErr] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -53,20 +61,51 @@ export default function App() {
 
   useEffect(() => {
     void getCategories()
-      .then(setCategories)
-      .catch(() =>
-        setCategories([
-          "UNCATEGORIZED",
-          "FOOD_AND_DRINK",
-          "GENERAL_MERCHANDISE",
-          "TRANSPORTATION",
-        ])
-      );
+      .then((c) => {
+        setCategories(c.categories);
+        setCategoryLabels(c.labels);
+      })
+      .catch(() => {
+        setCategories(["UNCATEGORIZED"]);
+        setCategoryLabels({});
+      });
   }, []);
+
+  const loadBudgets = useCallback(async () => {
+    try {
+      const b = await getBudgets(year, monthNum);
+      setBudgets(b.budgets);
+    } catch {
+      setBudgets({});
+    }
+  }, [year, monthNum]);
 
   useEffect(() => {
     void loadTransactions();
   }, [loadTransactions]);
+
+  useEffect(() => {
+    void loadBudgets();
+  }, [loadBudgets]);
+
+  /** Updates transaction category locally (no full refetch); syncs with API. */
+  const assignCategory = useCallback(
+    async (transactionId: string, category: string) => {
+      let previous: TransactionsPayload | null = null;
+      setTx((cur) => {
+        previous = cur;
+        if (!cur) return cur;
+        return mergeCategoryChange(cur, transactionId, category);
+      });
+      try {
+        await setTransactionCategory(transactionId, category);
+      } catch (e) {
+        setTx(previous);
+        throw e;
+      }
+    },
+    []
+  );
 
   const onPickFile = () => fileRef.current?.click();
 
@@ -79,11 +118,23 @@ export default function App() {
     setUploading(true);
     try {
       const res = await uploadStatement(file);
-      setUploadMsg(
-        res.parsed_count === 0
-          ? "No transaction lines matched. Try a text-based PDF, or check date/description/amount layout."
-          : `Imported ${res.parsed_count} transaction${res.parsed_count === 1 ? "" : "s"}.`
-      );
+      if (res.parsed_count === 0 && res.skipped_duplicates === 0) {
+        setUploadMsg(
+          "No transaction lines matched. Try a text-based PDF, or check date/description/amount layout."
+        );
+      } else if (res.parsed_count === 0 && res.skipped_duplicates > 0) {
+        setUploadMsg(
+          `No new transactions added (${res.skipped_duplicates} duplicate line${res.skipped_duplicates === 1 ? "" : "s"} already in your database).`
+        );
+      } else {
+        const skip =
+          res.skipped_duplicates > 0
+            ? ` ${res.skipped_duplicates} duplicate line${res.skipped_duplicates === 1 ? "" : "s"} skipped.`
+            : "";
+        setUploadMsg(
+          `Imported ${res.parsed_count} new transaction${res.parsed_count === 1 ? "" : "s"}.${skip}`
+        );
+      }
       await loadTransactions();
     } catch (err: unknown) {
       setUploadErr(err instanceof Error ? err.message : String(err));
@@ -129,12 +180,26 @@ export default function App() {
         {uploadMsg ? <p className="upload-msg muted">{uploadMsg}</p> : null}
 
         <section className="card">
+          <BudgetDashboard
+            year={year}
+            month={monthNum}
+            data={tx}
+            loading={txLoading}
+            budgets={budgets}
+            labels={categoryLabels}
+            categoryKeys={categories}
+            onBudgetsSaved={setBudgets}
+          />
+        </section>
+
+        <section className="card">
           <BucketList
             data={tx}
             loading={txLoading}
             error={txError}
             categories={categories}
-            onTransactionsChanged={loadTransactions}
+            categoryLabels={categoryLabels}
+            assignCategory={assignCategory}
           />
         </section>
       </main>

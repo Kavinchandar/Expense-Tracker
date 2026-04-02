@@ -1,6 +1,6 @@
 from datetime import date as date_type
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 from sqlalchemy import Date, DateTime, Float, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -28,6 +28,7 @@ class StoredTransaction(Base):
     posted_date: Mapped[date_type] = mapped_column(Date, index=True)
     description: Mapped[str] = mapped_column(String(1024))
     amount: Mapped[float] = mapped_column(Float)
+    balance_after: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     category: Mapped[str] = mapped_column(String(128), default="UNCATEGORIZED")
 
     upload: Mapped["StatementUpload"] = relationship(back_populates="transactions")

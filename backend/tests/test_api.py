@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from db import SessionLocal
+import db as db_module
 from data.models.statement import StatementUpload, StoredTransaction
 
 
@@ -17,7 +17,9 @@ def test_categories(client):
     assert r.status_code == 200
     body = r.json()
     assert "categories" in body
+    assert "labels" in body
     assert "UNCATEGORIZED" in body["categories"]
+    assert body["labels"].get("UNCATEGORIZED") == "Uncategorized"
 
 
 def test_transactions_empty_month(client):
@@ -26,6 +28,10 @@ def test_transactions_empty_month(client):
     data = r.json()
     assert data["buckets"] == []
     assert data["month_total"] == 0.0
+    assert data["total_inflow"] == 0.0
+    assert data["total_outflow"] == 0.0
+    assert data["opening_balance"] is None
+    assert data["closing_balance"] is None
 
 
 def test_transactions_invalid_month(client):
@@ -43,7 +49,7 @@ def test_upload_rejects_non_pdf(client):
 
 
 def test_patch_transaction_category(client):
-    session = SessionLocal()
+    session = db_module.SessionLocal()
     try:
         upload = StatementUpload(filename="seed.pdf")
         session.add(upload)
@@ -63,11 +69,11 @@ def test_patch_transaction_category(client):
 
     r = client.patch(
         f"/api/transactions/{tid}/category",
-        json={"category": "FOOD_AND_DRINK"},
+        json={"category": "FOOD_AND_DINING"},
     )
     assert r.status_code == 200
 
     listed = client.get("/api/transactions", params={"year": 2024, "month": 6})
     assert listed.status_code == 200
     buckets = listed.json()["buckets"]
-    assert any(b["name"] == "FOOD_AND_DRINK" for b in buckets)
+    assert any(b["name"] == "FOOD_AND_DINING" for b in buckets)

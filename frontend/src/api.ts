@@ -25,6 +25,10 @@ export type TransactionsPayload = {
   year: number;
   month: number;
   month_total: number;
+  total_inflow: number;
+  total_outflow: number;
+  opening_balance: number | null;
+  closing_balance: number | null;
   buckets: {
     name: string;
     total: number;
@@ -77,16 +81,52 @@ export async function getTransactions(
   return r.json();
 }
 
-export async function getCategories(): Promise<string[]> {
+export type CategoriesPayload = {
+  categories: string[];
+  labels: Record<string, string>;
+};
+
+export async function getCategories(): Promise<CategoriesPayload> {
   const r = await fetch(`${API}/categories`);
   if (!r.ok) throw new Error(await readHttpError(r));
-  const data = (await r.json()) as { categories: string[] };
-  return data.categories;
+  return r.json() as Promise<CategoriesPayload>;
+}
+
+export async function getBudgets(
+  year: number,
+  month: number
+): Promise<{ year: number; month: number; budgets: Record<string, number> }> {
+  const q = new URLSearchParams({
+    year: String(year),
+    month: String(month),
+  });
+  const r = await fetch(`${API}/budgets?${q}`);
+  if (!r.ok) throw new Error(await readHttpError(r));
+  return r.json();
+}
+
+export async function saveBudgets(
+  year: number,
+  month: number,
+  budgets: Record<string, number>
+): Promise<{ year: number; month: number; budgets: Record<string, number> }> {
+  const q = new URLSearchParams({
+    year: String(year),
+    month: String(month),
+  });
+  const r = await fetch(`${API}/budgets?${q}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ budgets }),
+  });
+  if (!r.ok) throw new Error(await readHttpError(r));
+  return r.json();
 }
 
 export async function uploadStatement(file: File): Promise<{
   parsed_count: number;
   upload_id: number;
+  skipped_duplicates: number;
 }> {
   const body = new FormData();
   body.append("file", file);

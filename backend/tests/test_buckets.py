@@ -25,7 +25,7 @@ def test_group_by_bucket_orders_and_totals():
             "name": "x",
             "amount": 10.0,
             "merchant_name": None,
-            "primary_category": "FOOD_AND_DRINK",
+            "primary_category": "FOOD_AND_DINING",
             "detailed_category": None,
             "pending": False,
         },
@@ -44,4 +44,4 @@ def test_group_by_bucket_orders_and_totals():
     assert month_total == pytest.approx(-20.0)
     names = [b["name"] for b in buckets]
     assert names[0] == "TRANSPORTATION"
-    assert names[1] == "FOOD_AND_DRINK"
+    assert names[1] == "FOOD_AND_DINING"

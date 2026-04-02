@@ -157,7 +157,14 @@ def parse_icici_savings_statement_text(text: str) -> list[dict[str, Any]]:
             signed = bal - prev_bal
 
         prev_bal = bal
-        rows.append({"date": d, "description": desc[:1024], "amount": round(signed, 2)})
+        rows.append(
+            {
+                "date": d,
+                "description": desc[:1024],
+                "amount": round(signed, 2),
+                "balance_after": round(bal, 2),
+            }
+        )
 
     rows.sort(key=lambda r: (r["date"], r["description"]))
     return rows
