@@ -1,0 +1,35 @@
+# Expense Tracker: web (nginx + static UI) + api (FastAPI)
+#
+# Usage:
+#   cp backend/.env.example backend/.env   # add Plaid / optional Gemini keys
+#   docker compose up --build
+#   Open http://localhost:8080
+#
+# SQLite data persists in the expense_data volume at /data in the api container.
+
+services:
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: sqlite:////data/expense_tracker.db
+    env_file:
+      - path: ./backend/.env
+        required: false
+    volumes:
+      - expense_data:/data
+    expose:
+      - "8000"
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+
+volumes:
+  expense_data:
