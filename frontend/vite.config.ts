@@ -6,9 +6,12 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
+      // Large PDFs + pdfplumber can take minutes; avoid proxy cutting the connection (ECONNRESET).
       "/api": {
         target: "http://127.0.0.1:8000",
         changeOrigin: true,
+        timeout: 600_000,
+        proxyTimeout: 600_000,
       },
     },
   },

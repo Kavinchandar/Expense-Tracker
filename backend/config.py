@@ -26,6 +26,12 @@ class Settings(BaseSettings):
     # SQLite path relative to backend dir
     database_url: str = "sqlite:///./expense_tracker.db"
 
+    # Google AI Studio / Gemini — https://aistudio.google.com/apikey
+    # Use a current model id (1.5 aliases were removed from the API for many keys).
+    # See https://ai.google.dev/gemini-api/docs/models/gemini — e.g. gemini-2.5-flash-lite
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.5-flash-lite"
+
 
 @lru_cache
 def get_settings() -> Settings:

@@ -68,6 +68,19 @@ export async function exchangePublicToken(publicToken: string): Promise<void> {
   if (!r.ok) throw new Error(await readHttpError(r));
 }
 
+export async function getInsights(
+  year: number,
+  month: number
+): Promise<{ insights: string }> {
+  const q = new URLSearchParams({
+    year: String(year),
+    month: String(month),
+  });
+  const r = await fetch(`${API}/insights?${q}`);
+  if (!r.ok) throw new Error(await readHttpError(r));
+  return r.json();
+}
+
 export async function getTransactions(
   year: number,
   month: number
@@ -127,6 +140,7 @@ export async function uploadStatement(file: File): Promise<{
   parsed_count: number;
   upload_id: number;
   skipped_duplicates: number;
+  replaced_count: number;
 }> {
   const body = new FormData();
   body.append("file", file);
@@ -135,7 +149,32 @@ export async function uploadStatement(file: File): Promise<{
     body,
   });
   if (!r.ok) throw new Error(await readHttpError(r));
-  return r.json();
+  const raw: unknown = await r.json();
+  return coerceUploadStatementResponse(raw);
+}
+
+/** Normalize API JSON so missing or camelCase fields never produce `undefined` in the UI. */
+function coerceUploadStatementResponse(raw: unknown): {
+  parsed_count: number;
+  upload_id: number;
+  skipped_duplicates: number;
+  replaced_count: number;
+} {
+  const n = (v: unknown): number => {
+    if (v === undefined || v === null || v === "") return 0;
+    const x = Number(v);
+    return Number.isFinite(x) ? x : 0;
+  };
+  if (!raw || typeof raw !== "object") {
+    return { parsed_count: 0, upload_id: 0, skipped_duplicates: 0, replaced_count: 0 };
+  }
+  const o = raw as Record<string, unknown>;
+  return {
+    parsed_count: n(o.parsed_count ?? o.parsedCount),
+    upload_id: n(o.upload_id ?? o.uploadId),
+    skipped_duplicates: n(o.skipped_duplicates ?? o.skippedDuplicates),
+    replaced_count: n(o.replaced_count ?? o.replacedCount),
+  };
 }
 
 export async function setTransactionCategory(

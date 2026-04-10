@@ -14,7 +14,8 @@ from data.models.statement import StoredTransaction
 from services import pdf_statement
 from services.buckets import group_by_bucket, month_date_range
 from services.exceptions import NotFoundError, UnprocessableEntityError, ValidationError
-from services.transaction_fingerprint import fingerprint_from_parsed
+from services.auto_categorize import classify
+from services.transaction_fingerprint import line_fingerprint_digest_from_parsed
 
 MAX_STATEMENT_UPLOAD_BYTES = 10 * 1024 * 1024
 
@@ -36,7 +37,8 @@ class MonthlyTransactionsResult:
 class UploadStatementResult:
     upload_id: int
     parsed_count: int  # rows inserted
-    skipped_duplicates: int  # lines from PDF not inserted (already present or duplicate in file)
+    skipped_duplicates: int  # duplicate lines within the same PDF
+    replaced_count: int  # legacy; always 0 (incremental import; no date-range wipe)
 
 
 def _period_cashflow_and_balances(rows: list[StoredTransaction]) -> tuple[float, float, float | None, float | None]:
@@ -57,8 +59,10 @@ def _period_cashflow_and_balances(rows: list[StoredTransaction]) -> tuple[float,
 
 
 def _stored_to_bucket_row(t: StoredTransaction) -> dict:
+    # Never emit null: frontend used `patchingId === id` and null===null disabled every row.
+    ref = t.line_fingerprint or str(t.id)
     return {
-        "transaction_id": str(t.id),
+        "transaction_id": ref,
         "date": t.posted_date.isoformat(),
         "name": t.description,
         "amount": t.amount,
@@ -90,34 +94,63 @@ class StatementService:
 
         if not parsed:
             return UploadStatementResult(
-                upload_id=0, parsed_count=0, skipped_duplicates=0
+                upload_id=0, parsed_count=0, skipped_duplicates=0, replaced_count=0
             )
 
-        # One set: DB rows in this date range + lines we've already accepted from this PDF.
-        # Hashable tuple key = (date iso, amount, normalized description); dicts can't live in a set.
-        min_d = min(r["date"] for r in parsed)
-        max_d = max(r["date"] for r in parsed)
-        seen = self._stored.fingerprints_in_date_range(min_d, max_d)
-
+        intra_seen: set[str] = set()
         to_insert: list[dict] = []
+        intra_dup = 0
         for row in parsed:
-            fp = fingerprint_from_parsed(row)
-            if fp in seen:
+            d = line_fingerprint_digest_from_parsed(row)
+            if d in intra_seen:
+                intra_dup += 1
                 continue
-            seen.add(fp)
+            intra_seen.add(d)
             to_insert.append(row)
 
-        skipped = len(parsed) - len(to_insert)
+        n_after_intra = len(to_insert)
+        global_pre_skip = 0
+        if to_insert:
+            want = {line_fingerprint_digest_from_parsed(r) for r in to_insert}
+            already = self._stored.existing_line_fingerprints(want)
+            to_insert = [
+                r
+                for r in to_insert
+                if line_fingerprint_digest_from_parsed(r) not in already
+            ]
+            global_pre_skip = n_after_intra - len(to_insert)
 
-        if not to_insert:
-            return UploadStatementResult(
-                upload_id=0, parsed_count=0, skipped_duplicates=skipped
+        for row in to_insert:
+            row["category"] = classify(
+                self._session, str(row.get("description", "")), float(row["amount"])
             )
 
-        upload_id, count = self._uploads.create_upload_with_parsed_rows(name, to_insert)
+        if not to_insert:
+            self._session.commit()
+            return UploadStatementResult(
+                upload_id=0,
+                parsed_count=0,
+                skipped_duplicates=intra_dup + global_pre_skip,
+                replaced_count=0,
+            )
+
+        upload_id, count, global_skip = self._uploads.create_upload_with_parsed_rows(
+            name, to_insert
+        )
         self._session.commit()
+        skipped = intra_dup + global_pre_skip + global_skip
+        if count == 0:
+            return UploadStatementResult(
+                upload_id=0,
+                parsed_count=0,
+                skipped_duplicates=skipped,
+                replaced_count=0,
+            )
         return UploadStatementResult(
-            upload_id=upload_id, parsed_count=count, skipped_duplicates=skipped
+            upload_id=upload_id,
+            parsed_count=count,
+            skipped_duplicates=skipped,
+            replaced_count=0,
         )
 
     def monthly_transactions(self, year: int, month: int) -> MonthlyTransactionsResult:
@@ -141,12 +174,12 @@ class StatementService:
             display_timezone=settings.display_timezone,
         )
 
-    def set_transaction_category(self, transaction_id: int, category: str) -> None:
+    def set_transaction_category(self, transaction_id: str, category: str) -> None:
         if category not in EXPENSE_CATEGORIES:
             allowed = ", ".join(EXPENSE_CATEGORIES)
             raise ValidationError(f"Unknown category. Use one of: {allowed}")
 
-        row = self._stored.get(transaction_id)
+        row = self._stored.get_by_ref(transaction_id)
         if row is None:
             raise NotFoundError("Transaction not found.")
 

@@ -24,8 +24,14 @@ class BudgetService:
 
     def get_monthly_budgets(self, year: int, month: int) -> MonthlyBudgetsResult:
         month_date_range(year, month)  # validates month
-        rows = self._repo.list_for_month(year, month)
-        by_cat = {r.category: r.amount for r in rows}
+        by_cat = self._repo.list_defaults()
+        if not by_cat:
+            legacy = self._repo.legacy_latest_snapshot()
+            if legacy:
+                full = {k: float(legacy.get(k, 0.0)) for k in EXPENSE_CATEGORIES}
+                self._repo.replace_defaults(full)
+                self._session.commit()
+                by_cat = self._repo.list_defaults()
         budgets = {k: float(by_cat.get(k, 0.0)) for k in EXPENSE_CATEGORIES}
         return MonthlyBudgetsResult(year=year, month=month, budgets=budgets)
 
@@ -36,9 +42,9 @@ class BudgetService:
         unknown = set(budgets.keys()) - set(EXPENSE_CATEGORIES)
         if unknown:
             raise ValidationError(f"Unknown categories: {', '.join(sorted(unknown))}")
-        if any(float(v) < 0 for v in budgets.values()):
+        full = {k: float(budgets.get(k, 0.0)) for k in EXPENSE_CATEGORIES}
+        if any(v < 0 for v in full.values()):
             raise ValidationError("Budget amounts must be zero or positive.")
-        clean = {k: float(v) for k, v in budgets.items() if float(v) > 0}
-        self._repo.replace_month(year, month, clean)
+        self._repo.replace_defaults(full)
         self._session.commit()
         return self.get_monthly_budgets(year, month)

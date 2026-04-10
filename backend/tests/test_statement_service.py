@@ -8,6 +8,10 @@ from sqlalchemy.orm import sessionmaker
 from data.models.statement import StatementUpload, StoredTransaction
 from services.exceptions import NotFoundError, ValidationError
 from services.statement_service import StatementService
+from services.transaction_fingerprint import (
+    line_fingerprint_digest_from_stored,
+    normalize_description,
+)
 
 
 def test_set_category_not_found(memory_engine):
@@ -16,7 +20,7 @@ def test_set_category_not_found(memory_engine):
     try:
         svc = StatementService(session)
         with pytest.raises(NotFoundError):
-            svc.set_transaction_category(999, "FOOD_AND_DINING")
+            svc.set_transaction_category("999", "FOOD_AND_DINING")
     finally:
         session.close()
 
@@ -28,10 +32,15 @@ def test_set_category_invalid(memory_engine):
         upload = StatementUpload(filename="x.pdf")
         session.add(upload)
         session.flush()
+        fp = line_fingerprint_digest_from_stored(
+            date(2024, 6, 1), -5.0, "coffee"
+        )
         row = StoredTransaction(
             upload_id=upload.id,
+            line_fingerprint=fp,
             posted_date=date(2024, 6, 1),
             description="coffee",
+            merchant_key=normalize_description("coffee"),
             amount=-5.0,
             category="UNCATEGORIZED",
         )
@@ -40,7 +49,7 @@ def test_set_category_invalid(memory_engine):
 
         svc = StatementService(session)
         with pytest.raises(ValidationError, match="Unknown category"):
-            svc.set_transaction_category(row.id, "NOT_A_REAL_CATEGORY")
+            svc.set_transaction_category(fp, "NOT_A_REAL_CATEGORY")
     finally:
         session.close()
 
@@ -55,8 +64,12 @@ def test_monthly_transactions_after_upload(memory_engine):
         session.add(
             StoredTransaction(
                 upload_id=upload.id,
+                line_fingerprint=line_fingerprint_digest_from_stored(
+                    date(2024, 6, 15), -12.5, "lunch"
+                ),
                 posted_date=date(2024, 6, 15),
                 description="lunch",
+                merchant_key=normalize_description("lunch"),
                 amount=-12.5,
                 category="FOOD_AND_DINING",
             )
@@ -86,8 +99,12 @@ def test_monthly_balances_from_running_balance(memory_engine):
         session.add(
             StoredTransaction(
                 upload_id=upload.id,
+                line_fingerprint=line_fingerprint_digest_from_stored(
+                    date(2024, 6, 1), -100.0, "withdraw"
+                ),
                 posted_date=date(2024, 6, 1),
                 description="withdraw",
+                merchant_key=normalize_description("withdraw"),
                 amount=-100.0,
                 balance_after=900.0,
                 category="UNCATEGORIZED",
@@ -96,8 +113,12 @@ def test_monthly_balances_from_running_balance(memory_engine):
         session.add(
             StoredTransaction(
                 upload_id=upload.id,
+                line_fingerprint=line_fingerprint_digest_from_stored(
+                    date(2024, 6, 2), 50.0, "deposit"
+                ),
                 posted_date=date(2024, 6, 2),
                 description="deposit",
+                merchant_key=normalize_description("deposit"),
                 amount=50.0,
                 balance_after=950.0,
                 category="UNCATEGORIZED",
@@ -126,7 +147,7 @@ def test_upload_pdf_rejects_non_pdf(memory_engine):
         session.close()
 
 
-def test_upload_skips_duplicate_of_existing(monkeypatch, memory_engine):
+def test_upload_skips_lines_already_stored_incremental_import(monkeypatch, memory_engine):
     Session = sessionmaker(bind=memory_engine)
     session = Session()
     try:
@@ -145,9 +166,11 @@ def test_upload_skips_duplicate_of_existing(monkeypatch, memory_engine):
         r1 = svc.upload_pdf("a.pdf", b"%PDF")
         assert r1.parsed_count == 1
         assert r1.skipped_duplicates == 0
+        assert r1.replaced_count == 0
 
         r2 = svc.upload_pdf("b.pdf", b"%PDF")
         assert r2.parsed_count == 0
         assert r2.skipped_duplicates == 1
+        assert r2.replaced_count == 0
     finally:
         session.close()

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { TransactionsPayload } from "../api";
 import { saveBudgets } from "../api";
 import { INFLOW_KEY, SPENDING_CHART_ORDER } from "../bucketOrder";
+import { BudgetSpendPieChart } from "./BudgetSpendPieChart";
 
 function formatInr(n: number): string {
   return n.toLocaleString(undefined, {
@@ -67,16 +68,8 @@ export function BudgetDashboard({
         budget,
         spent,
       };
-    });
+    }).filter((row) => row.spent > 0);
   }, [spentByName, budgets, labels]);
-
-  const spendingMax = useMemo(() => {
-    let m = 1;
-    for (const r of spendingChartRows) {
-      m = Math.max(m, r.budget, r.spent);
-    }
-    return m;
-  }, [spendingChartRows]);
 
   const inflowRow = useMemo(() => {
     const received = spentByName.get(INFLOW_KEY) ?? 0;
@@ -87,10 +80,6 @@ export function BudgetDashboard({
       received,
     };
   }, [spentByName, budgets, labels]);
-
-  const inflowMax = useMemo(() => {
-    return Math.max(1, inflowRow.budget, inflowRow.received);
-  }, [inflowRow]);
 
   const onSave = async () => {
     setSaveErr(null);
@@ -124,21 +113,29 @@ export function BudgetDashboard({
     <div className="budget-dashboard">
       <h3 className="budget-dashboard-title">Buckets & budget</h3>
       <p className="muted budget-dashboard-lede">
-        Compare what you planned (budget) to actual spending per bucket. InFlow
-        shows income received vs your income target.
+        Compare what you planned (budget) to actual spending per bucket.
       </p>
 
       {saveErr ? <p className="error">{saveErr}</p> : null}
 
+      <BudgetSpendPieChart
+        year={year}
+        month={month}
+        spentByName={spentByName}
+        budgets={budgets}
+        labels={labels}
+        totalInflow={data.total_inflow}
+        totalOutflow={data.total_outflow}
+      />
+
       <div className="bucket-cards">
-        {SPENDING_CHART_ORDER.map((key) => {
-          const spent = spentByName.get(key) ?? 0;
-          const budget = budgets[key] ?? 0;
+        {spendingChartRows.map((row) => {
+          const { key, spent, budget, fullName } = row;
           const pct = budget > 0 ? Math.min(100, (spent / budget) * 100) : 0;
           const over = budget > 0 && spent > budget;
           return (
             <div key={key} className={`bucket-card ${over ? "bucket-card--over" : ""}`}>
-              <div className="bucket-card-title">{labels[key] ?? key}</div>
+              <div className="bucket-card-title">{fullName}</div>
               <div className="bucket-card-figures">
                 <span className="bucket-card-spent">{formatInr(spent)}</span>
                 <span className="bucket-card-sep"> / </span>
@@ -168,75 +165,10 @@ export function BudgetDashboard({
         </div>
       </div>
 
-      <div className="chart-block">
-        <h4 className="chart-block-title">Spending: budget vs actual</h4>
-        <div className="css-bar-chart" aria-label="Spending budget versus actual by category">
-          {spendingChartRows.map((row) => (
-            <div key={row.key} className="css-bar-chart-row">
-              <div className="css-bar-chart-label" title={row.fullName}>
-                {row.fullName.length > 22 ? `${row.fullName.slice(0, 20)}…` : row.fullName}
-              </div>
-              <div className="css-bar-chart-bars">
-                <div className="css-bar-pair">
-                  <span className="css-bar-legend">Budget</span>
-                  <div className="css-bar-track">
-                    <div
-                      className="css-bar-fill css-bar-fill--budget"
-                      style={{ width: `${(row.budget / spendingMax) * 100}%` }}
-                    />
-                  </div>
-                  <span className="css-bar-num">{formatInr(row.budget)}</span>
-                </div>
-                <div className="css-bar-pair">
-                  <span className="css-bar-legend">Spent</span>
-                  <div className="css-bar-track">
-                    <div
-                      className="css-bar-fill css-bar-fill--spent"
-                      style={{ width: `${(row.spent / spendingMax) * 100}%` }}
-                    />
-                  </div>
-                  <span className="css-bar-num">{formatInr(row.spent)}</span>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="chart-block chart-block--inflow">
-        <h4 className="chart-block-title">InFlow: target vs received</h4>
-        <div className="css-bar-chart css-bar-chart--inflow">
-          <div className="css-bar-chart-row">
-            <div className="css-bar-chart-label">{inflowRow.fullName}</div>
-            <div className="css-bar-chart-bars">
-              <div className="css-bar-pair">
-                <span className="css-bar-legend">Target</span>
-                <div className="css-bar-track">
-                  <div
-                    className="css-bar-fill css-bar-fill--inflow-target"
-                    style={{ width: `${(inflowRow.budget / inflowMax) * 100}%` }}
-                  />
-                </div>
-                <span className="css-bar-num">{formatInr(inflowRow.budget)}</span>
-              </div>
-              <div className="css-bar-pair">
-                <span className="css-bar-legend">Received</span>
-                <div className="css-bar-track">
-                  <div
-                    className="css-bar-fill css-bar-fill--inflow-received"
-                    style={{ width: `${(inflowRow.received / inflowMax) * 100}%` }}
-                  />
-                </div>
-                <span className="css-bar-num">{formatInr(inflowRow.received)}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <details className="budget-edit">
         <summary>
-          Edit monthly budgets ({year}-{String(month).padStart(2, "0")})
+          Edit global budgets — one target per category for all months (the month picker only
+          changes which month&apos;s spending you compare)
         </summary>
         <div className="budget-edit-grid">
           {categoryKeys.map((key) => (

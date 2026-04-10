@@ -10,6 +10,7 @@ import type { TransactionsPayload } from "./api";
 import { mergeCategoryChange } from "./groupBuckets";
 import { BudgetDashboard } from "./components/BudgetDashboard";
 import { BucketList } from "./components/BucketList";
+import { InsightsPanel } from "./components/InsightsPanel";
 import { MonthPicker } from "./components/MonthPicker";
 import "./App.css";
 
@@ -71,14 +72,16 @@ export default function App() {
       });
   }, []);
 
+  /** Budget targets are global (same for every month); API only needs a valid month for the request. */
   const loadBudgets = useCallback(async () => {
     try {
-      const b = await getBudgets(year, monthNum);
+      const now = new Date();
+      const b = await getBudgets(now.getFullYear(), now.getMonth() + 1);
       setBudgets(b.budgets);
     } catch {
       setBudgets({});
     }
-  }, [year, monthNum]);
+  }, []);
 
   useEffect(() => {
     void loadTransactions();
@@ -118,21 +121,27 @@ export default function App() {
     setUploading(true);
     try {
       const res = await uploadStatement(file);
+      const replaced = res.replaced_count ?? 0;
+      const refresh =
+        replaced > 0
+          ? `Cleared ${replaced} existing line${replaced === 1 ? "" : "s"} in that statement's date range. `
+          : "";
       if (res.parsed_count === 0 && res.skipped_duplicates === 0) {
         setUploadMsg(
-          "No transaction lines matched. Try a text-based PDF, or check date/description/amount layout."
+          refresh ||
+            "No transaction lines matched. Try a text-based PDF, or check date/description/amount layout."
         );
       } else if (res.parsed_count === 0 && res.skipped_duplicates > 0) {
         setUploadMsg(
-          `No new transactions added (${res.skipped_duplicates} duplicate line${res.skipped_duplicates === 1 ? "" : "s"} already in your database).`
+          `${refresh}No new lines added (${res.skipped_duplicates} duplicate line${res.skipped_duplicates === 1 ? "" : "s"} in this PDF).`
         );
       } else {
         const skip =
           res.skipped_duplicates > 0
-            ? ` ${res.skipped_duplicates} duplicate line${res.skipped_duplicates === 1 ? "" : "s"} skipped.`
+            ? ` ${res.skipped_duplicates} duplicate line${res.skipped_duplicates === 1 ? "" : "s"} skipped in this PDF.`
             : "";
         setUploadMsg(
-          `Imported ${res.parsed_count} new transaction${res.parsed_count === 1 ? "" : "s"}.${skip}`
+          `${refresh}Imported ${res.parsed_count} transaction${res.parsed_count === 1 ? "" : "s"}.${skip}`
         );
       }
       await loadTransactions();
@@ -178,6 +187,10 @@ export default function App() {
 
         {uploadErr ? <p className="error">{uploadErr}</p> : null}
         {uploadMsg ? <p className="upload-msg muted">{uploadMsg}</p> : null}
+
+        <section className="card">
+          <InsightsPanel year={year} month={monthNum} txLoading={txLoading} />
+        </section>
 
         <section className="card">
           <BudgetDashboard

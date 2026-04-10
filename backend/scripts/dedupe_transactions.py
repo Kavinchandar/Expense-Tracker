@@ -17,7 +17,11 @@ from sqlalchemy import select
 
 from data.models.statement import StoredTransaction
 from db import SessionLocal
-from services.transaction_fingerprint import fingerprint_from_stored
+from services.transaction_fingerprint import (
+    fingerprint_from_stored,
+    line_fingerprint_digest_from_stored,
+    normalize_description,
+)
 
 
 def main() -> None:
@@ -37,6 +41,17 @@ def main() -> None:
             for t in group[1:]:
                 session.delete(t)
                 deleted += 1
+
+        session.flush()
+        for t in session.execute(select(StoredTransaction)).scalars().all():
+            d = line_fingerprint_digest_from_stored(
+                t.posted_date, t.amount, t.description
+            )
+            if t.line_fingerprint != d:
+                t.line_fingerprint = d
+            mk = normalize_description(t.description)
+            if getattr(t, "merchant_key", None) != mk:
+                t.merchant_key = mk
 
         session.commit()
         print(f"Removed {deleted} duplicate row(s).")

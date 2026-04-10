@@ -178,8 +178,15 @@ export function BucketList({
               <tbody>
                 {flatRows.map((t) => {
                   const opts = categoryOptions(categories, t.primary_category);
+                  const rowId = t.transaction_id;
+                  /** Avoid `null === null`: when id is missing, idle state must not disable every row. */
+                  const rowBusy =
+                    patchingId != null &&
+                    rowId != null &&
+                    rowId !== "" &&
+                    String(patchingId) === String(rowId);
                   return (
-                    <tr key={t.transaction_id}>
+                    <tr key={rowId ?? `${t.date}-${t.name}-${t.amount}`}>
                       <td className="col-date">{t.date}</td>
                       <td className="col-desc">
                         <span className="tx-desc-text">
@@ -196,10 +203,12 @@ export function BucketList({
                         <select
                           className="category-select"
                           value={t.primary_category}
-                          disabled={patchingId === t.transaction_id}
+                          disabled={
+                            rowBusy || rowId == null || rowId === ""
+                          }
                           onChange={(e) =>
                             void onCategoryChange(
-                              t.transaction_id,
+                              String(rowId),
                               e.target.value
                             )
                           }

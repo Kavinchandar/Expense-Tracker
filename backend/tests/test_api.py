@@ -4,6 +4,10 @@ from datetime import date
 
 import db as db_module
 from data.models.statement import StatementUpload, StoredTransaction
+from services.transaction_fingerprint import (
+    line_fingerprint_digest_from_stored,
+    normalize_description,
+)
 
 
 def test_health(client):
@@ -54,21 +58,23 @@ def test_patch_transaction_category(client):
         upload = StatementUpload(filename="seed.pdf")
         session.add(upload)
         session.flush()
+        fp = line_fingerprint_digest_from_stored(date(2024, 6, 10), -4.0, "cafe")
         row = StoredTransaction(
             upload_id=upload.id,
+            line_fingerprint=fp,
             posted_date=date(2024, 6, 10),
             description="cafe",
+            merchant_key=normalize_description("cafe"),
             amount=-4.0,
             category="UNCATEGORIZED",
         )
         session.add(row)
         session.commit()
-        tid = row.id
     finally:
         session.close()
 
     r = client.patch(
-        f"/api/transactions/{tid}/category",
+        f"/api/transactions/{fp}/category",
         json={"category": "FOOD_AND_DINING"},
     )
     assert r.status_code == 200

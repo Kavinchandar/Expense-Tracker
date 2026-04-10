@@ -33,7 +33,7 @@ def get_transactions(
 
 @router.patch("/transactions/{transaction_id}/category")
 def patch_transaction_category(
-    transaction_id: int,
+    transaction_id: str,
     body: CategoryBody,
     db: Session = Depends(get_db),
 ):

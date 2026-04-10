@@ -35,6 +35,7 @@ class UploadStatementResponse(BaseModel):
     upload_id: int
     parsed_count: int
     skipped_duplicates: int = 0
+    replaced_count: int = 0
 
 
 class CategoryBody(BaseModel):
@@ -59,3 +60,7 @@ class BudgetsPutBody(BaseModel):
 class PlaidExchangeResponse(BaseModel):
     ok: bool
     institution_name: Optional[str] = None
+
+
+class InsightsResponse(BaseModel):
+    insights: str
