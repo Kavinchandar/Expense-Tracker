@@ -16,11 +16,6 @@ async function readHttpError(r: Response): Promise<string> {
   return text || r.statusText;
 }
 
-export type PlaidStatus = {
-  connected: boolean;
-  institution_name: string | null;
-};
-
 export type TransactionsPayload = {
   year: number;
   month: number;
@@ -45,28 +40,6 @@ export type TransactionsPayload = {
   }[];
   display_timezone: string;
 };
-
-export async function getPlaidStatus(): Promise<PlaidStatus> {
-  const r = await fetch(`${API}/plaid/status`);
-  if (!r.ok) throw new Error(await readHttpError(r));
-  return r.json();
-}
-
-export async function fetchLinkToken(): Promise<string> {
-  const r = await fetch(`${API}/plaid/link_token`, { method: "POST" });
-  if (!r.ok) throw new Error(await readHttpError(r));
-  const data = (await r.json()) as { link_token: string };
-  return data.link_token;
-}
-
-export async function exchangePublicToken(publicToken: string): Promise<void> {
-  const r = await fetch(`${API}/plaid/exchange`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ public_token: publicToken }),
-  });
-  if (!r.ok) throw new Error(await readHttpError(r));
-}
 
 export async function getInsights(
   year: number,
@@ -187,10 +160,4 @@ export async function setTransactionCategory(
     body: JSON.stringify({ category }),
   });
   if (!r.ok) throw new Error(await readHttpError(r));
-}
-
-export function plaidLinkEnv(): "sandbox" | "development" | "production" {
-  const v = import.meta.env.VITE_PLAID_ENV?.toLowerCase();
-  if (v === "production" || v === "development" || v === "sandbox") return v;
-  return "sandbox";
 }

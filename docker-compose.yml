@@ -1,7 +1,7 @@
 # Expense Tracker: web (nginx + static UI) + api (FastAPI)
 #
 # Usage:
-#   cp backend/.env.example backend/.env   # add Plaid / optional Gemini keys
+#   cp backend/.env.example backend/.env   # optional Gemini keys
 #   docker compose up --build
 #   Open http://localhost:8080
 #

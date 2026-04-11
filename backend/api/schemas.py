@@ -5,19 +5,6 @@ from typing import Dict, List, Optional
 from pydantic import BaseModel, Field
 
 
-class LinkTokenResponse(BaseModel):
-    link_token: str
-
-
-class ExchangeBody(BaseModel):
-    public_token: str = Field(..., min_length=1)
-
-
-class PlaidStatusResponse(BaseModel):
-    connected: bool
-    institution_name: Optional[str] = None
-
-
 class TransactionsResponse(BaseModel):
     year: int
     month: int
@@ -55,11 +42,6 @@ class BudgetsResponse(BaseModel):
 
 class BudgetsPutBody(BaseModel):
     budgets: Dict[str, float] = Field(default_factory=dict)
-
-
-class PlaidExchangeResponse(BaseModel):
-    ok: bool
-    institution_name: Optional[str] = None
 
 
 class InsightsResponse(BaseModel):

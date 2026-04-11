@@ -11,9 +11,6 @@ Removes:
   - Budget defaults (budget_defaults)
   - Legacy per-month budgets (monthly_budgets) if present
 
-Optional:
-  --with-plaid   Also delete Plaid connection rows (plaid_items).
-
 Does not delete the database file itself; tables stay empty.
 """
 
@@ -29,7 +26,6 @@ from sqlalchemy import delete, inspect
 
 from data.models.budget_default import BudgetDefault
 from data.models.monthly_budget import MonthlyBudget
-from data.models.plaid_item import PlaidItem
 from data.models.statement import StatementUpload, StoredTransaction
 from db import SessionLocal, engine
 
@@ -40,11 +36,6 @@ def main() -> None:
         "--yes",
         action="store_true",
         help="Required: confirm you want to delete all data.",
-    )
-    parser.add_argument(
-        "--with-plaid",
-        action="store_true",
-        help="Also remove Plaid items (access tokens / link state).",
     )
     args = parser.parse_args()
     if not args.yes:
@@ -61,21 +52,13 @@ def main() -> None:
             bd_n = session.execute(delete(BudgetDefault)).rowcount or 0
         if insp.has_table("monthly_budgets"):
             mb_n = session.execute(delete(MonthlyBudget)).rowcount or 0
-        plaid_n = 0
-        if args.with_plaid and insp.has_table("plaid_items"):
-            plaid_n = session.execute(delete(PlaidItem)).rowcount or 0
 
         session.commit()
 
         print(
             "Cleared:",
             f"transactions={tx_n}, uploads={up_n}, budget_defaults={bd_n}, monthly_budgets={mb_n}",
-            end="",
         )
-        if args.with_plaid:
-            print(f", plaid_items={plaid_n}")
-        else:
-            print()
         print("Done. You can upload statements again.")
     finally:
         session.close()
