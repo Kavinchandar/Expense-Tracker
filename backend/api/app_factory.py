@@ -117,6 +117,29 @@ def _ensure_stored_transaction_merchant_key(engine) -> None:
         )
 
 
+def _ensure_stored_transaction_soft_delete(engine) -> None:
+    """Add deleted_at; replace global unique(line_fingerprint) with partial unique (active rows only)."""
+    if not str(engine.url).startswith("sqlite"):
+        return
+    insp = inspect(engine)
+    if not insp.has_table("stored_transactions"):
+        return
+    cols = {c["name"] for c in insp.get_columns("stored_transactions")}
+    if "deleted_at" not in cols:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE stored_transactions ADD COLUMN deleted_at DATETIME"))
+
+    with engine.begin() as conn:
+        conn.execute(text("DROP INDEX IF EXISTS uq_stored_transactions_line_fingerprint"))
+        conn.execute(text("DROP INDEX IF EXISTS uq_stored_transactions_line_fp_active"))
+        conn.execute(
+            text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_stored_transactions_line_fp_active "
+                "ON stored_transactions(line_fingerprint) WHERE deleted_at IS NULL"
+            )
+        )
+
+
 def create_app() -> FastAPI:
     @asynccontextmanager
     async def lifespan(_: FastAPI):
@@ -133,6 +156,7 @@ def create_app() -> FastAPI:
         _ensure_stored_transaction_balance_column(engine)
         _ensure_stored_transaction_line_fingerprint(engine)
         _ensure_stored_transaction_merchant_key(engine)
+        _ensure_stored_transaction_soft_delete(engine)
         yield
 
     app = FastAPI(title="Expense Tracker API", lifespan=lifespan)

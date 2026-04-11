@@ -296,6 +296,95 @@
   width: 11rem;
 }
 
+.tx-table .col-action {
+  width: 4.5rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.btn-tx-delete {
+  font-size: 0.78rem;
+  padding: 0.25rem 0.45rem;
+  border-radius: 6px;
+  border: 1px solid #c4bdb2;
+  background: #faf9f6;
+  color: #5c5348;
+  cursor: pointer;
+}
+
+.btn-tx-delete:hover:not(:disabled) {
+  background: #f3ebe4;
+  border-color: #a89888;
+}
+
+.btn-tx-delete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tx-deleted-section {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 2px dashed #d8d2c8;
+}
+
+.tx-deleted-section.card-inner {
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.tx-deleted-heading {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #6e6560;
+}
+
+.tx-deleted-note,
+.tx-deleted-intro {
+  margin: 0 0 0.75rem;
+  font-size: 0.88rem;
+  max-width: 42rem;
+}
+
+.tx-table-deleted {
+  opacity: 0.92;
+}
+
+.tx-table-deleted tbody tr {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.col-restore {
+  width: 5rem;
+  text-align: right;
+}
+
+.btn-tx-restore {
+  font-size: 0.78rem;
+  padding: 0.25rem 0.55rem;
+  border-radius: 6px;
+  border: 1px solid #8a9b8a;
+  background: #f4f8f4;
+  color: #2d4a2d;
+  cursor: pointer;
+}
+
+.btn-tx-restore:hover:not(:disabled) {
+  background: #e6efe6;
+}
+
+.btn-tx-restore:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.bucket-summary-deleted .bucket-summary-name {
+  color: #7a726c;
+  font-style: italic;
+}
+
 .tx-desc-text {
   display: block;
   word-break: break-word;

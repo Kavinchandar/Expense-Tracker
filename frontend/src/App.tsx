@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  deleteTransaction,
   getBudgets,
   getCategories,
   getTransactions,
+  restoreTransaction,
   setTransactionCategory,
   uploadStatement,
 } from "./api";
@@ -110,6 +112,16 @@ export default function App() {
     []
   );
 
+  const removeTransaction = useCallback(async (transactionId: string) => {
+    await deleteTransaction(transactionId);
+    await loadTransactions();
+  }, [loadTransactions]);
+
+  const restoreTxn = useCallback(async (transactionId: string) => {
+    await restoreTransaction(transactionId);
+    await loadTransactions();
+  }, [loadTransactions]);
+
   const onPickFile = () => fileRef.current?.click();
 
   const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -213,6 +225,8 @@ export default function App() {
             categories={categories}
             categoryLabels={categoryLabels}
             assignCategory={assignCategory}
+            onDeleteTransaction={removeTransaction}
+            onRestoreTransaction={restoreTxn}
           />
         </section>
       </main>

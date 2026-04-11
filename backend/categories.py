@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+# Reserved API bucket for soft-deleted rows (not assignable as a category).
+DELETED_BUCKET_KEY = "__DELETED__"
+
 # Ordered for UI: spending buckets first, then inflow, then catch-all.
 EXPENSE_CATEGORIES: tuple[str, ...] = (
     "HOUSING_AND_RENT",
@@ -22,6 +25,7 @@ EXPENSE_CATEGORIES: tuple[str, ...] = (
 
 # API key -> human-readable name
 BUCKET_LABELS: dict[str, str] = {
+    DELETED_BUCKET_KEY: "Deleted",
     "HOUSING_AND_RENT": "Housing and rent",
     "UTILITY_BILLS": "Utility Bills",
     "FOOD_AND_DINING": "Food and Dining",

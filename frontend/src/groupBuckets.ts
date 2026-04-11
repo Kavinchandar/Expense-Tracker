@@ -1,4 +1,5 @@
 import type { TransactionsPayload } from "./api";
+import { DELETED_BUCKET_KEY } from "./bucketOrder";
 
 type TxRow = TransactionsPayload["buckets"][number]["transactions"][number];
 
@@ -55,7 +56,12 @@ export function mergeCategoryChange(
       ? { ...t, primary_category: newCategory }
       : t
   );
-  const { buckets, month_total } = groupIntoBuckets(rows);
+  const { buckets } = groupIntoBuckets(rows);
+  let month_total = 0;
+  for (const b of buckets) {
+    if (b.name === DELETED_BUCKET_KEY) continue;
+    month_total += b.total;
+  }
   return {
     ...tx,
     buckets,

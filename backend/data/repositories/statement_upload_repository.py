@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy import delete, exists, select
+from sqlalchemy import and_, delete, exists, select
 from sqlalchemy.orm import Session
 
 from data.models.statement import StatementUpload, StoredTransaction
@@ -48,7 +48,10 @@ class StatementUploadRepository:
                 continue
             exists_id = self._session.scalar(
                 select(StoredTransaction.id).where(
-                    StoredTransaction.line_fingerprint == fp
+                    and_(
+                        StoredTransaction.line_fingerprint == fp,
+                        StoredTransaction.deleted_at.is_(None),
+                    )
                 )
             )
             if exists_id is not None:

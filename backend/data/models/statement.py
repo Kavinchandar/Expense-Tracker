@@ -25,14 +25,13 @@ class StoredTransaction(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     upload_id: Mapped[int] = mapped_column(ForeignKey("statement_uploads.id"), index=True)
-    line_fingerprint: Mapped[str] = mapped_column(
-        String(64), unique=True, index=True, nullable=False
-    )
+    line_fingerprint: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
     posted_date: Mapped[date_type] = mapped_column(Date, index=True)
     description: Mapped[str] = mapped_column(String(1024))
     merchant_key: Mapped[str] = mapped_column(String(512), index=True, nullable=False)
     amount: Mapped[float] = mapped_column(Float)
     balance_after: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     category: Mapped[str] = mapped_column(String(128), default="UNCATEGORIZED")
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
 
     upload: Mapped["StatementUpload"] = relationship(back_populates="transactions")

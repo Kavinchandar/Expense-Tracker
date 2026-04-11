@@ -10,7 +10,7 @@ from typing import Any
 import httpx
 from sqlalchemy.orm import Session
 
-from categories import BUCKET_LABELS
+from categories import BUCKET_LABELS, DELETED_BUCKET_KEY
 from config import get_settings
 from services.exceptions import BadGatewayError, ServiceUnavailableError
 from services.statement_service import MonthlyTransactionsResult, StatementService
@@ -36,12 +36,16 @@ def _format_month_payload(result: MonthlyTransactionsResult) -> str:
     lines.append("")
     lines.append("Totals by category (user-assigned bucket):")
     for b in sorted(result.buckets, key=lambda x: x["name"]):
+        if b["name"] == DELETED_BUCKET_KEY:
+            continue
         label = BUCKET_LABELS.get(b["name"], b["name"])
         lines.append(
             f"  - {label} ({b['name']}): {b['total']:.2f} — {len(b['transactions'])} transaction(s)"
         )
     flat: list[dict[str, Any]] = []
     for b in result.buckets:
+        if b["name"] == DELETED_BUCKET_KEY:
+            continue
         for t in b["transactions"]:
             flat.append(t)
     flat.sort(key=lambda x: (x["date"], x["transaction_id"]), reverse=True)

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
-from categories import EXPENSE_CATEGORIES
+from categories import DELETED_BUCKET_KEY, EXPENSE_CATEGORIES
 from config import get_settings
 from data.repositories.statement_upload_repository import StatementUploadRepository
 from data.repositories.stored_transaction_repository import StoredTransactionRepository
@@ -58,7 +58,7 @@ def _period_cashflow_and_balances(rows: list[StoredTransaction]) -> tuple[float,
     return total_inflow, total_outflow, opening, closing
 
 
-def _stored_to_bucket_row(t: StoredTransaction) -> dict:
+def _stored_to_bucket_row(t: StoredTransaction, *, is_deleted: bool = False) -> dict:
     # Never emit null: frontend used `patchingId === id` and null===null disabled every row.
     ref = t.line_fingerprint or str(t.id)
     return {
@@ -67,9 +67,10 @@ def _stored_to_bucket_row(t: StoredTransaction) -> dict:
         "name": t.description,
         "amount": t.amount,
         "merchant_name": None,
-        "primary_category": t.category,
+        "primary_category": DELETED_BUCKET_KEY if is_deleted else t.category,
         "detailed_category": None,
         "pending": False,
+        "is_deleted": is_deleted,
     }
 
 
@@ -156,11 +157,26 @@ class StatementService:
     def monthly_transactions(self, year: int, month: int) -> MonthlyTransactionsResult:
         start, end = month_date_range(year, month)
         rows = self._stored.list_for_date_range(start, end)
+        active = [t for t in rows if t.deleted_at is None]
+        deleted = [t for t in rows if t.deleted_at is not None]
         total_inflow, total_outflow, opening_balance, closing_balance = _period_cashflow_and_balances(
-            rows
+            active
         )
-        dict_rows = [_stored_to_bucket_row(t) for t in rows]
+        dict_rows = [_stored_to_bucket_row(t) for t in active]
         buckets, month_total = group_by_bucket(dict_rows)
+        if deleted:
+            del_rows = [_stored_to_bucket_row(t, is_deleted=True) for t in deleted]
+            del_rows.sort(
+                key=lambda x: (x["date"], str(x.get("transaction_id", ""))),
+                reverse=True,
+            )
+            buckets.append(
+                {
+                    "name": DELETED_BUCKET_KEY,
+                    "total": sum(x["amount"] for x in del_rows),
+                    "transactions": del_rows,
+                }
+            )
         settings = get_settings()
         return MonthlyTransactionsResult(
             year=year,
@@ -182,6 +198,20 @@ class StatementService:
         row = self._stored.get_by_ref(transaction_id)
         if row is None:
             raise NotFoundError("Transaction not found.")
+        if row.deleted_at is not None:
+            raise ValidationError("Restore a deleted transaction before changing its category.")
 
         row.category = category
+        self._session.commit()
+
+    def soft_delete_transaction(self, transaction_id: str) -> None:
+        ok = self._stored.soft_delete(transaction_id)
+        if not ok:
+            raise NotFoundError("Transaction not found or already deleted.")
+        self._session.commit()
+
+    def restore_transaction(self, transaction_id: str) -> None:
+        ok = self._stored.restore(transaction_id)
+        if not ok:
+            raise NotFoundError("Transaction not found or not deleted.")
         self._session.commit()

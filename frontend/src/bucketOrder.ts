@@ -1,5 +1,8 @@
 /** Must match backend `categories.SPENDING_BUCKET_KEYS` + INFLOW order for UI. */
 
+/** Soft-deleted transactions bucket (not a user-assignable category). */
+export const DELETED_BUCKET_KEY = "__DELETED__";
+
 export const SPENDING_CHART_ORDER = [
   "HOUSING_AND_RENT",
   "UTILITY_BILLS",

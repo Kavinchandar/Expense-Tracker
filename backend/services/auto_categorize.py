@@ -21,6 +21,7 @@ def history_suggest(session: Session, merchant_key: str) -> str | None:
     stmt = (
         select(StoredTransaction.category, cnt, last_date, last_id)
         .where(StoredTransaction.merchant_key == merchant_key)
+        .where(StoredTransaction.deleted_at.is_(None))
         .where(StoredTransaction.category != "UNCATEGORIZED")
         .group_by(StoredTransaction.category)
         .order_by(desc(cnt), desc(last_date), desc(last_id))

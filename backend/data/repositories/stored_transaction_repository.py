@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timezone
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
@@ -43,7 +43,8 @@ class StoredTransactionRepository:
         if not digests:
             return set()
         q = select(StoredTransaction.line_fingerprint).where(
-            StoredTransaction.line_fingerprint.in_(digests)
+            StoredTransaction.line_fingerprint.in_(digests),
+            StoredTransaction.deleted_at.is_(None),
         )
         return set(self._session.scalars(q).all())
 
@@ -61,5 +62,21 @@ class StoredTransactionRepository:
     def fingerprints_in_date_range(self, start: date, end: date) -> set[tuple[str, float, str]]:
         rows = self.list_for_date_range(start, end)
         return {
-            fingerprint_from_stored(t.posted_date, t.amount, t.description) for t in rows
+            fingerprint_from_stored(t.posted_date, t.amount, t.description)
+            for t in rows
+            if t.deleted_at is None
         }
+
+    def soft_delete(self, ref: str) -> bool:
+        row = self.get_by_ref(ref)
+        if row is None or row.deleted_at is not None:
+            return False
+        row.deleted_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        return True
+
+    def restore(self, ref: str) -> bool:
+        row = self.get_by_ref(ref)
+        if row is None or row.deleted_at is None:
+            return False
+        row.deleted_at = None
+        return True

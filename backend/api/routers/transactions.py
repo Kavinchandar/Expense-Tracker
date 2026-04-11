@@ -40,3 +40,23 @@ def patch_transaction_category(
     svc = StatementService(db)
     svc.set_transaction_category(transaction_id, body.category)
     return {"ok": True}
+
+
+@router.delete("/transactions/{transaction_id}")
+def delete_transaction(
+    transaction_id: str,
+    db: Session = Depends(get_db),
+):
+    svc = StatementService(db)
+    svc.soft_delete_transaction(transaction_id)
+    return {"ok": True}
+
+
+@router.post("/transactions/{transaction_id}/restore")
+def restore_transaction(
+    transaction_id: str,
+    db: Session = Depends(get_db),
+):
+    svc = StatementService(db)
+    svc.restore_transaction(transaction_id)
+    return {"ok": True}

@@ -36,6 +36,7 @@ export type TransactionsPayload = {
       primary_category: string;
       detailed_category: string | null;
       pending: boolean;
+      is_deleted?: boolean;
     }[];
   }[];
   display_timezone: string;
@@ -154,10 +155,29 @@ export async function setTransactionCategory(
   transactionId: string,
   category: string
 ): Promise<void> {
-  const r = await fetch(`${API}/transactions/${transactionId}/category`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ category }),
-  });
+  const r = await fetch(
+    `${API}/transactions/${encodeURIComponent(transactionId)}/category`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ category }),
+    }
+  );
+  if (!r.ok) throw new Error(await readHttpError(r));
+}
+
+export async function deleteTransaction(transactionId: string): Promise<void> {
+  const r = await fetch(
+    `${API}/transactions/${encodeURIComponent(transactionId)}`,
+    { method: "DELETE" }
+  );
+  if (!r.ok) throw new Error(await readHttpError(r));
+}
+
+export async function restoreTransaction(transactionId: string): Promise<void> {
+  const r = await fetch(
+    `${API}/transactions/${encodeURIComponent(transactionId)}/restore`,
+    { method: "POST" }
+  );
   if (!r.ok) throw new Error(await readHttpError(r));
 }
