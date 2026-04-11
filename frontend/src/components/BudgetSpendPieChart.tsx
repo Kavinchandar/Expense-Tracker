@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { SPENDING_CHART_ORDER } from "../bucketOrder";
+import { INFLOW_KEY, SPENDING_CHART_ORDER } from "../bucketOrder";
 
 type Props = {
   year: number;
@@ -73,6 +73,14 @@ function hueMuted(i: number): string {
   return `hsl(${h} 38% 88%)`;
 }
 
+const CHART_KEYS = SPENDING_CHART_ORDER as unknown as readonly string[];
+
+/** Stable color index for category keys (matches progress cards). */
+function categoryHueIndex(key: string): number {
+  const i = CHART_KEYS.indexOf(key);
+  return i >= 0 ? i : 0;
+}
+
 const UNBUDGETED_SOLID = "hsl(32 68% 42%)";
 const UNBUDGETED_MUTED = "hsl(32 42% 90%)";
 const SURPLUS_SOLID = "hsl(152 42% 40%)";
@@ -88,7 +96,6 @@ type Segment = {
   angle: number;
   fillFrac: number;
   overBudget: boolean;
-  hueIndex: number;
   kind: SegmentKind;
 };
 
@@ -103,150 +110,162 @@ export function BudgetSpendPieChart({
 }: Props) {
   const cashSurplus = Math.max(0, totalInflow - totalOutflow);
 
-  const { segments, mode, totalBudget, totalSpentBudgeted, unbudgetedSpent } =
-    useMemo(() => {
-      const rows = SPENDING_CHART_ORDER.map((key) => ({
+  const spendingChartRows = useMemo(() => {
+    return SPENDING_CHART_ORDER.map((key) => {
+      const spent = spentByName.get(key) ?? 0;
+      const budget = budgets[key] ?? 0;
+      return {
         key,
-        label: labels[key] ?? key,
-        budget: Math.max(0, budgets[key] ?? 0),
-        spent: Math.max(0, spentByName.get(key) ?? 0),
-      }));
+        fullName: labels[key] ?? key,
+        budget,
+        spent,
+      };
+    }).filter((row) => row.spent > 0);
+  }, [spentByName, budgets, labels]);
 
-      const totalBudget = rows.reduce((s, r) => s + r.budget, 0);
-      const unbudgetedSpent = rows
-        .filter((r) => r.budget <= 0)
-        .reduce((s, r) => s + r.spent, 0);
+  const inflowRow = useMemo(
+    () => ({
+      fullName: labels[INFLOW_KEY] ?? "InFlow",
+      budget: budgets[INFLOW_KEY] ?? 0,
+      received: spentByName.get(INFLOW_KEY) ?? 0,
+    }),
+    [spentByName, budgets, labels]
+  );
 
-      const baseDenom = totalBudget + unbudgetedSpent;
-      const surplusAdd = cashSurplus > 0 ? cashSurplus : 0;
-      const denom = baseDenom + surplusAdd;
+  const { segments, mode, unbudgetedSpent } = useMemo(() => {
+    const rows = SPENDING_CHART_ORDER.map((key) => ({
+      key,
+      label: labels[key] ?? key,
+      budget: Math.max(0, budgets[key] ?? 0),
+      spent: Math.max(0, spentByName.get(key) ?? 0),
+    }));
 
-      if (denom > 0) {
-        let hueIndex = 0;
-        const segments: Segment[] = [];
-        for (const r of rows) {
-          if (r.budget <= 0) continue;
-          const angle = (r.budget / denom) * Math.PI * 2;
-          const fillFrac = r.budget > 0 ? Math.min(1, r.spent / r.budget) : 0;
-          const overBudget = r.budget > 0 && r.spent > r.budget;
-          segments.push({
-            key: r.key,
-            label: r.label,
-            budget: r.budget,
-            spent: r.spent,
-            angle,
-            fillFrac,
-            overBudget,
-            hueIndex: hueIndex++,
-            kind: "normal",
-          });
-        }
-        if (unbudgetedSpent > 0) {
-          segments.push({
-            key: "__unbudgeted__",
-            label: "Unbudgeted spend",
-            budget: unbudgetedSpent,
-            spent: unbudgetedSpent,
-            angle: (unbudgetedSpent / denom) * Math.PI * 2,
-            fillFrac: 1,
-            overBudget: false,
-            hueIndex: hueIndex,
-            kind: "unbudgeted",
-          });
-        }
-        if (cashSurplus > 0) {
-          segments.push({
-            key: "__surplus__",
-            label: "Surplus",
-            budget: cashSurplus,
-            spent: cashSurplus,
-            angle: (cashSurplus / denom) * Math.PI * 2,
-            fillFrac: 1,
-            overBudget: false,
-            hueIndex: hueIndex + 1,
-            kind: "surplus",
-          });
-        }
-        const totalSpentBudgeted = rows.reduce((s, r) => s + r.spent, 0);
-        return {
-          segments,
-          mode: "budget" as const,
-          totalBudget,
-          totalSpentBudgeted,
-          unbudgetedSpent,
-        };
+    const totalBudget = rows.reduce((s, r) => s + r.budget, 0);
+    const unbudgetedSpent = rows
+      .filter((r) => r.budget <= 0)
+      .reduce((s, r) => s + r.spent, 0);
+
+    const baseDenom = totalBudget + unbudgetedSpent;
+    const surplusAdd = cashSurplus > 0 ? cashSurplus : 0;
+    const denom = baseDenom + surplusAdd;
+
+    if (denom > 0) {
+      const segments: Segment[] = [];
+      for (const r of rows) {
+        if (r.budget <= 0) continue;
+        const angle = (r.budget / denom) * Math.PI * 2;
+        const fillFrac = r.budget > 0 ? Math.min(1, r.spent / r.budget) : 0;
+        const overBudget = r.budget > 0 && r.spent > r.budget;
+        segments.push({
+          key: r.key,
+          label: r.label,
+          budget: r.budget,
+          spent: r.spent,
+          angle,
+          fillFrac,
+          overBudget,
+          kind: "normal",
+        });
       }
-
-      const spentRows = rows.filter((r) => r.spent > 0);
-      const sumSpent = spentRows.reduce((s, r) => s + r.spent, 0);
-      const spentDenom = sumSpent + (cashSurplus > 0 ? cashSurplus : 0);
-
-      if (spentDenom <= 0) {
-        if (cashSurplus > 0) {
-          return {
-            segments: [
-              {
-                key: "__surplus__",
-                label: "Surplus",
-                budget: cashSurplus,
-                spent: cashSurplus,
-                angle: Math.PI * 2,
-                fillFrac: 1,
-                overBudget: false,
-                hueIndex: 0,
-                kind: "surplus",
-              },
-            ] as Segment[],
-            mode: "spent_only" as const,
-            totalBudget: 0,
-            totalSpentBudgeted: 0,
-            unbudgetedSpent: 0,
-          };
-        }
-        return {
-          segments: [] as Segment[],
-          mode: "empty" as const,
-          totalBudget: 0,
-          totalSpentBudgeted: 0,
-          unbudgetedSpent: 0,
-        };
+      if (unbudgetedSpent > 0) {
+        segments.push({
+          key: "__unbudgeted__",
+          label: "Unbudgeted spend",
+          budget: unbudgetedSpent,
+          spent: unbudgetedSpent,
+          angle: (unbudgetedSpent / denom) * Math.PI * 2,
+          fillFrac: 1,
+          overBudget: false,
+          kind: "unbudgeted",
+        });
       }
-
-      let hueIndex = 0;
-      const segments: Segment[] = spentRows.map((r) => ({
-        key: r.key,
-        label: r.label,
-        budget: r.spent,
-        spent: r.spent,
-        angle: (r.spent / spentDenom) * Math.PI * 2,
-        fillFrac: 1,
-        overBudget: false,
-        hueIndex: hueIndex++,
-        kind: "spent_only" as const,
-      }));
-
       if (cashSurplus > 0) {
         segments.push({
           key: "__surplus__",
           label: "Surplus",
           budget: cashSurplus,
           spent: cashSurplus,
-          angle: (cashSurplus / spentDenom) * Math.PI * 2,
+          angle: (cashSurplus / denom) * Math.PI * 2,
           fillFrac: 1,
           overBudget: false,
-          hueIndex: hueIndex,
           kind: "surplus",
         });
       }
-
       return {
         segments,
-        mode: "spent_only" as const,
+        mode: "budget" as const,
+        totalBudget,
+        totalSpentBudgeted: rows.reduce((s, r) => s + r.spent, 0),
+        unbudgetedSpent,
+      };
+    }
+
+    const spentRows = rows.filter((r) => r.spent > 0);
+    const sumSpent = spentRows.reduce((s, r) => s + r.spent, 0);
+    const spentDenom = sumSpent + (cashSurplus > 0 ? cashSurplus : 0);
+
+    if (spentDenom <= 0) {
+      if (cashSurplus > 0) {
+        return {
+          segments: [
+            {
+              key: "__surplus__",
+              label: "Surplus",
+              budget: cashSurplus,
+              spent: cashSurplus,
+              angle: Math.PI * 2,
+              fillFrac: 1,
+              overBudget: false,
+              kind: "surplus",
+            },
+          ] as Segment[],
+          mode: "spent_only" as const,
+          totalBudget: 0,
+          totalSpentBudgeted: 0,
+          unbudgetedSpent: 0,
+        };
+      }
+      return {
+        segments: [] as Segment[],
+        mode: "empty" as const,
         totalBudget: 0,
-        totalSpentBudgeted: sumSpent,
+        totalSpentBudgeted: 0,
         unbudgetedSpent: 0,
       };
-    }, [spentByName, budgets, labels, cashSurplus]);
+    }
+
+    const segments: Segment[] = spentRows.map((r) => ({
+      key: r.key,
+      label: r.label,
+      budget: r.spent,
+      spent: r.spent,
+      angle: (r.spent / spentDenom) * Math.PI * 2,
+      fillFrac: 1,
+      overBudget: false,
+      kind: "spent_only" as const,
+    }));
+
+    if (cashSurplus > 0) {
+      segments.push({
+        key: "__surplus__",
+        label: "Surplus",
+        budget: cashSurplus,
+        spent: cashSurplus,
+        angle: (cashSurplus / spentDenom) * Math.PI * 2,
+        fillFrac: 1,
+        overBudget: false,
+        kind: "surplus",
+      });
+    }
+
+    return {
+      segments,
+      mode: "spent_only" as const,
+      totalBudget: 0,
+      totalSpentBudgeted: sumSpent,
+      unbudgetedSpent: 0,
+    };
+  }, [spentByName, budgets, labels, cashSurplus]);
 
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
   const hoveredSeg = useMemo(
@@ -294,8 +313,9 @@ export function BudgetSpendPieChart({
       muted = SURPLUS_MUTED;
       solid = SURPLUS_SOLID;
     } else {
-      muted = hueMuted(seg.hueIndex);
-      solid = hueForIndex(seg.hueIndex);
+      const hi = categoryHueIndex(seg.key);
+      muted = hueMuted(hi);
+      solid = hueForIndex(hi);
     }
     const overStroke = seg.overBudget ? "#a05048" : "none";
     const isHover = hoveredKey === seg.key;
@@ -333,6 +353,8 @@ export function BudgetSpendPieChart({
       ? `Spending mix for ${monthLabel} by category`
       : `Budget allocation for ${monthLabel} with spent amount filling each slice`;
 
+  const hasSurplusSlice = segments.some((s) => s.key === "__surplus__");
+
   return (
     <div className="budget-pie-block">
       <h4 className="budget-pie-title">Budget vs spent</h4>
@@ -345,7 +367,8 @@ export function BudgetSpendPieChart({
       ) : (
         <p className="budget-pie-hint muted">
           Slice size is share of budget, unbudgeted spend, and cash surplus; darker
-          fill is share used in each budget slice.
+          fill is share used in each category. Hover the chart or a card—colors
+          match.
           {unbudgetedSpent > 0
             ? " Tan slice is spending in categories with no budget."
             : ""}{" "}
@@ -373,55 +396,72 @@ export function BudgetSpendPieChart({
           </div>
         ) : (
           <p className="budget-pie-floater-placeholder muted">
-            Hover a slice for details
+            Hover the chart or a category card below
           </p>
         )}
       </div>
 
-      <ul className="budget-pie-legend budget-pie-legend--below">
-        {segments.map((seg) => (
-          <li
-            key={seg.key}
-            className={
-              hoveredKey === seg.key ? "budget-pie-legend-item--active" : undefined
-            }
-            onMouseEnter={() => setHoveredKey(seg.key)}
-            onMouseLeave={() => setHoveredKey(null)}
-          >
-            <span
-              className="budget-pie-swatch"
-              style={{ background: swatchColor(seg) }}
-            />
-            <span className="budget-pie-legend-text">
-              <span className="budget-pie-legend-name">{seg.label}</span>
-              {legendLine(seg, chartMode)}
-            </span>
-          </li>
-        ))}
-      </ul>
-
-      {mode === "budget" && totalBudget > 0 ? (
-        <p className="budget-pie-footer muted">
-          Total budgeted {formatInr(totalBudget)} · Spent in categories above{" "}
-          {formatInr(totalSpentBudgeted)}
-          {cashSurplus > 0
-            ? ` · Surplus ${formatInr(cashSurplus)} (inflow ${formatInr(totalInflow)} − outflow ${formatInr(totalOutflow)})`
-            : ""}
-        </p>
-      ) : mode === "spent_only" && cashSurplus > 0 ? (
-        <p className="budget-pie-footer muted">
-          Inflow {formatInr(totalInflow)} · Outflow {formatInr(totalOutflow)} · Surplus{" "}
-          {formatInr(cashSurplus)}
-        </p>
-      ) : null}
+      <div className="bucket-cards budget-pie-cards">
+        {spendingChartRows.map((row) => {
+          const { key, spent, budget, fullName } = row;
+          const pct = budget > 0 ? Math.min(100, (spent / budget) * 100) : 0;
+          const over = budget > 0 && spent > budget;
+          const hi = categoryHueIndex(key);
+          const accent = hueForIndex(hi);
+          const dimOthers = hoveredKey !== null && hoveredKey !== key;
+          return (
+            <div
+              key={key}
+              className={`bucket-card ${over ? "bucket-card--over" : ""} ${
+                dimOthers ? "bucket-card--dim" : ""
+              } ${hoveredKey === key ? "bucket-card--linked" : ""}`}
+              style={{ borderLeftColor: accent }}
+              onMouseEnter={() => setHoveredKey(key)}
+              onMouseLeave={() => setHoveredKey(null)}
+            >
+              <div className="bucket-card-title">{fullName}</div>
+              <div className="bucket-card-figures">
+                <span className="bucket-card-spent">{formatInr(spent)}</span>
+                <span className="bucket-card-sep"> / </span>
+                <span className="bucket-card-budget">{formatInr(budget)}</span>
+              </div>
+              {budget > 0 ? (
+                <div className="bucket-card-bar">
+                  <div
+                    className="bucket-card-bar-fill"
+                    style={{
+                      width: `${pct}%`,
+                      background: over ? "#a05048" : accent,
+                    }}
+                  />
+                </div>
+              ) : (
+                <p className="bucket-card-note muted">No budget set</p>
+              )}
+            </div>
+          );
+        })}
+        <div
+          className={`bucket-card bucket-card--inflow ${
+            hoveredKey !== null && hoveredKey !== "__surplus__" ? "bucket-card--dim" : ""
+          } ${hoveredKey === "__surplus__" ? "bucket-card--linked" : ""}`}
+          onMouseEnter={() => setHoveredKey(hasSurplusSlice ? "__surplus__" : null)}
+          onMouseLeave={() => setHoveredKey(null)}
+        >
+          <div className="bucket-card-title">{inflowRow.fullName}</div>
+          <div className="bucket-card-figures">
+            <span className="bucket-card-spent">{formatInr(inflowRow.received)}</span>
+            <span className="bucket-card-sep"> / </span>
+            <span className="bucket-card-budget">{formatInr(inflowRow.budget)}</span>
+          </div>
+          <p className="bucket-card-note muted">
+            Received / target
+            {hasSurplusSlice ? " · hover links to green surplus slice" : ""}
+          </p>
+        </div>
+      </div>
     </div>
   );
-}
-
-function swatchColor(seg: Segment): string {
-  if (seg.kind === "unbudgeted") return UNBUDGETED_SOLID;
-  if (seg.kind === "surplus") return SURPLUS_SOLID;
-  return hueForIndex(seg.hueIndex);
 }
 
 function tooltipTitle(seg: Segment, mode: "budget" | "spent_only"): string {
@@ -451,33 +491,4 @@ function floaterBody(seg: Segment, mode: "budget" | "spent_only"): string {
   const line = `${formatInr(seg.spent)} of ${formatInr(seg.budget)} budget (${pct}% used).`;
   if (seg.overBudget) return `${line} Over budget.`;
   return line;
-}
-
-function legendLine(seg: Segment, mode: "budget" | "spent_only"): ReactNode {
-  if (mode === "spent_only") {
-    if (seg.kind === "surplus") {
-      return (
-        <span className="budget-pie-legend-num muted">
-          {formatInr(seg.spent)} left after expenses
-        </span>
-      );
-    }
-    return <span className="budget-pie-legend-num muted">{formatInr(seg.spent)}</span>;
-  }
-  if (seg.kind === "surplus") {
-    return (
-      <span className="budget-pie-legend-num muted">
-        {formatInr(seg.spent)} (inflow − outflow)
-      </span>
-    );
-  }
-  if (seg.key === "__unbudgeted__") {
-    return <span className="budget-pie-legend-num muted">{formatInr(seg.spent)}</span>;
-  }
-  return (
-    <span className="budget-pie-legend-num muted">
-      {formatInr(seg.spent)} / {formatInr(seg.budget)}
-      {seg.overBudget ? " (over)" : ""}
-    </span>
-  );
 }

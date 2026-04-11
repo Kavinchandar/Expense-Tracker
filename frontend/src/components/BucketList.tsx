@@ -202,8 +202,9 @@ export function BucketList({
           </label>
         </p>
         <p className="tx-list-hint muted">
-          Active rows: assign a bucket or delete. Deleted rows are listed below
-          and stay out of totals and insights.
+          Active rows: assign a bucket or use <strong>Delete</strong> in the last
+          column (sticky on the right if the table scrolls sideways). Deleted rows
+          are listed below and stay out of totals and insights.
         </p>
       </header>
 
@@ -239,7 +240,9 @@ export function BucketList({
                 <th className="col-desc">Description</th>
                 <th className="col-amt">Amount</th>
                 <th className="col-cat">Bucket (category)</th>
-                <th className="col-action" aria-label="Delete" />
+                <th className="col-action" scope="col">
+                  Action
+                </th>
               </tr>
             </thead>
             <tbody>

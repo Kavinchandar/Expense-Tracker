@@ -1,15 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import type { TransactionsPayload } from "../api";
 import { saveBudgets } from "../api";
-import { INFLOW_KEY, SPENDING_CHART_ORDER } from "../bucketOrder";
+import { INFLOW_KEY } from "../bucketOrder";
 import { BudgetSpendPieChart } from "./BudgetSpendPieChart";
-
-function formatInr(n: number): string {
-  return n.toLocaleString(undefined, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  });
-}
 
 function spentForBucket(name: string, total: number): number {
   if (name === INFLOW_KEY) return Math.max(0, total);
@@ -58,29 +51,6 @@ export function BudgetDashboard({
     return m;
   }, [data]);
 
-  const spendingChartRows = useMemo(() => {
-    return SPENDING_CHART_ORDER.map((key) => {
-      const spent = spentByName.get(key) ?? 0;
-      const budget = budgets[key] ?? 0;
-      return {
-        key,
-        fullName: labels[key] ?? key,
-        budget,
-        spent,
-      };
-    }).filter((row) => row.spent > 0);
-  }, [spentByName, budgets, labels]);
-
-  const inflowRow = useMemo(() => {
-    const received = spentByName.get(INFLOW_KEY) ?? 0;
-    const budget = budgets[INFLOW_KEY] ?? 0;
-    return {
-      fullName: labels[INFLOW_KEY] ?? "InFlow",
-      budget,
-      received,
-    };
-  }, [spentByName, budgets, labels]);
-
   const onSave = async () => {
     setSaveErr(null);
     const payload: Record<string, number> = {};
@@ -113,7 +83,8 @@ export function BudgetDashboard({
     <div className="budget-dashboard">
       <h3 className="budget-dashboard-title">Buckets & budget</h3>
       <p className="muted budget-dashboard-lede">
-        Compare what you planned (budget) to actual spending per bucket.
+        Compare what you planned (budget) to actual spending per bucket. The donut
+        and the cards use the same colors—hover either to highlight.
       </p>
 
       {saveErr ? <p className="error">{saveErr}</p> : null}
@@ -127,43 +98,6 @@ export function BudgetDashboard({
         totalInflow={data.total_inflow}
         totalOutflow={data.total_outflow}
       />
-
-      <div className="bucket-cards">
-        {spendingChartRows.map((row) => {
-          const { key, spent, budget, fullName } = row;
-          const pct = budget > 0 ? Math.min(100, (spent / budget) * 100) : 0;
-          const over = budget > 0 && spent > budget;
-          return (
-            <div key={key} className={`bucket-card ${over ? "bucket-card--over" : ""}`}>
-              <div className="bucket-card-title">{fullName}</div>
-              <div className="bucket-card-figures">
-                <span className="bucket-card-spent">{formatInr(spent)}</span>
-                <span className="bucket-card-sep"> / </span>
-                <span className="bucket-card-budget">{formatInr(budget)}</span>
-              </div>
-              {budget > 0 ? (
-                <div className="bucket-card-bar">
-                  <div
-                    className="bucket-card-bar-fill"
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-              ) : (
-                <p className="bucket-card-note muted">No budget set</p>
-              )}
-            </div>
-          );
-        })}
-        <div className="bucket-card bucket-card--inflow">
-          <div className="bucket-card-title">{inflowRow.fullName}</div>
-          <div className="bucket-card-figures">
-            <span className="bucket-card-spent">{formatInr(inflowRow.received)}</span>
-            <span className="bucket-card-sep"> / </span>
-            <span className="bucket-card-budget">{formatInr(inflowRow.budget)}</span>
-          </div>
-          <p className="bucket-card-note muted">Received / target</p>
-        </div>
-      </div>
 
       <details className="budget-edit">
         <summary>
