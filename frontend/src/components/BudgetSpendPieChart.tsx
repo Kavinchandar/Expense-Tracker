@@ -1,5 +1,6 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { INFLOW_KEY, SPENDING_CHART_ORDER } from "../bucketOrder";
+import { formatInr } from "../formatInr";
 
 type Props = {
   year: number;
@@ -10,13 +11,6 @@ type Props = {
   totalInflow: number;
   totalOutflow: number;
 };
-
-function formatInr(n: number): string {
-  return n.toLocaleString(undefined, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  });
-}
 
 const MONTH_NAMES = [
   "January",

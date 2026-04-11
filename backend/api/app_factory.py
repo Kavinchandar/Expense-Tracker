@@ -9,7 +9,7 @@ from sqlalchemy import inspect, text
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.error_handlers import register_exception_handlers
-from api.routers import budgets, categories, health, insights, statements, transactions
+from api.routers import budgets, categories, health, insights, statements, surplus, transactions
 
 
 def _ensure_stored_transaction_balance_column(engine) -> None:
@@ -148,10 +148,11 @@ def create_app() -> FastAPI:
             MonthlyBudget,
             StatementUpload,
             StoredTransaction,
+            SurplusDefault,
         )
         from db import Base, engine
 
-        _ = (BudgetDefault, MonthlyBudget, StatementUpload, StoredTransaction)
+        _ = (BudgetDefault, MonthlyBudget, StatementUpload, StoredTransaction, SurplusDefault)
         Base.metadata.create_all(bind=engine)
         _ensure_stored_transaction_balance_column(engine)
         _ensure_stored_transaction_line_fingerprint(engine)
@@ -172,6 +173,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router, prefix="/api")
     app.include_router(categories.router, prefix="/api")
     app.include_router(budgets.router, prefix="/api")
+    app.include_router(surplus.router, prefix="/api")
     app.include_router(statements.router, prefix="/api")
     app.include_router(transactions.router, prefix="/api")
     app.include_router(insights.router, prefix="/api")

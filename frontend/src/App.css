@@ -830,3 +830,513 @@
   border-radius: 8px;
   color: #2c2a26;
 }
+
+/* Main view tabs (Overview / Surplus) */
+.app-tab-bar {
+  padding: 0.85rem 1.25rem;
+}
+
+.app-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.app-tab {
+  font-size: 0.95rem;
+  font-weight: 500;
+  padding: 0.45rem 0.95rem;
+  border-radius: 6px;
+  border: 1px solid #d8d4cc;
+  background: #faf9f6;
+  color: #3d3a35;
+  cursor: pointer;
+}
+
+.app-tab:hover {
+  background: #f3f0e8;
+  border-color: #c9c2b6;
+}
+
+.app-tab--active {
+  background: #2c2a26;
+  color: #faf9f6;
+  border-color: #2c2a26;
+}
+
+.app-tab--active:hover {
+  background: #1f1d1a;
+  border-color: #1f1d1a;
+}
+
+/* Surplus panel */
+.surplus-panel-title {
+  margin: 0 0 0.35rem;
+  font-size: 1.2rem;
+}
+
+.surplus-panel-lede {
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+  max-width: 42rem;
+}
+
+.surplus-controls {
+  margin-bottom: 1rem;
+}
+
+.surplus-pie-block {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid #e8e4dc;
+}
+
+.surplus-pie-title {
+  margin: 0 0 0.2rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.surplus-pie-sub {
+  margin: 0 0 0.5rem;
+  font-size: 0.88rem;
+}
+
+.surplus-pie-hint {
+  margin: 0 0 0.85rem;
+  font-size: 0.82rem;
+  max-width: 40rem;
+  line-height: 1.4;
+}
+
+.surplus-pie-empty {
+  margin: 0 0 0.5rem;
+  font-size: 0.88rem;
+  max-width: 38rem;
+}
+
+.surplus-pie-meta {
+  margin: 0;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.surplus-pie-legend {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  gap: 0.5rem;
+}
+
+.surplus-pie-legend-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid #e4dfd6;
+  border-left-width: 4px;
+  background: #faf9f6;
+  font: inherit;
+  cursor: pointer;
+  transition: opacity 0.15s ease, box-shadow 0.15s ease;
+}
+
+.surplus-pie-legend-btn:hover {
+  background: #f5f2ec;
+}
+
+.surplus-pie-legend-btn--on {
+  box-shadow: 0 0 0 2px #c4bdb2;
+}
+
+.surplus-pie-legend-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #3d3a35;
+}
+
+.surplus-pie-legend-amt {
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+  color: #2c2a26;
+}
+
+.surplus-lookback {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.88rem;
+}
+
+.surplus-lookback-label {
+  color: #5c5a55;
+  font-weight: 500;
+}
+
+.surplus-lookback-select {
+  font-size: 0.88rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #d8d4cc;
+  background: #faf9f6;
+  max-width: 12rem;
+}
+
+.surplus-legend {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 1.1rem;
+  font-size: 0.82rem;
+  color: #3d3a35;
+}
+
+.surplus-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.surplus-legend-swatch {
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* Surplus histogram: Y axis + vertical stacked columns per month */
+.surplus-histogram {
+  margin-bottom: 1.5rem;
+}
+
+.surplus-histogram-frame {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.35rem 0.5rem;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.surplus-h-y-axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding-bottom: 2.35rem;
+  min-height: 200px;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  color: #6e6b66;
+  user-select: none;
+}
+
+.surplus-h-y-tick {
+  line-height: 1;
+}
+
+.surplus-h-plot-wrap {
+  position: relative;
+  min-width: 0;
+  border-left: 1px solid #d8d4cc;
+  padding-left: 0.35rem;
+}
+
+.surplus-h-grid {
+  position: absolute;
+  left: 0.35rem;
+  right: 0;
+  top: 0;
+  height: 200px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.surplus-h-grid-line {
+  border-top: 1px dashed #e8e4dc;
+  height: 0;
+}
+
+.surplus-h-grid-line--base {
+  border-top: 1px solid #c4bdb2;
+}
+
+.surplus-h-cols {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  gap: 0.2rem;
+  min-height: 200px;
+  padding-bottom: 2.35rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.surplus-h-col {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 2.6rem;
+  min-width: 2.35rem;
+}
+
+.surplus-h-col-chart {
+  height: 200px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.surplus-h-bar-stub {
+  width: min(100%, 2.25rem);
+  height: 3px;
+  border-radius: 2px;
+  background: #e4dfd6;
+}
+
+.surplus-h-stack {
+  width: min(100%, 2.5rem);
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-end;
+  border-radius: 5px 5px 2px 2px;
+  overflow: hidden;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
+}
+
+.surplus-h-seg {
+  width: 100%;
+  flex-shrink: 0;
+}
+
+.surplus-h-x-label {
+  margin-top: 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #3d3a35;
+  text-align: center;
+  line-height: 1.2;
+  max-width: 100%;
+  word-break: break-word;
+}
+
+.surplus-h-x-value {
+  margin-top: 0.1rem;
+  font-size: 0.65rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.surplus-seg--term {
+  background: #2d6a8f;
+}
+
+.surplus-seg--health {
+  background: #3d8f6a;
+}
+
+.surplus-seg--contingency {
+  background: #b8860b;
+}
+
+.surplus-seg--invest {
+  background: #6b4c9a;
+}
+
+.surplus-seg--unallocated {
+  background: #9ca3af;
+}
+
+.surplus-legend-swatch.surplus-seg--term {
+  background: #2d6a8f;
+}
+
+.surplus-legend-swatch.surplus-seg--health {
+  background: #3d8f6a;
+}
+
+.surplus-legend-swatch.surplus-seg--contingency {
+  background: #b8860b;
+}
+
+.surplus-legend-swatch.surplus-seg--invest {
+  background: #6b4c9a;
+}
+
+.surplus-legend-swatch.surplus-seg--unallocated {
+  background: #9ca3af;
+}
+
+.surplus-budget-edit {
+  margin-top: 0;
+  padding-top: 1rem;
+  border-top: 1px solid #e8e4dc;
+}
+
+/* Yearly insights tab */
+.yearly-insights-title {
+  margin: 0 0 0.35rem;
+  font-size: 1.2rem;
+}
+
+.yearly-insights-lede {
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+  max-width: 40rem;
+  line-height: 1.45;
+}
+
+.yearly-year-pick {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 1.25rem;
+  font-size: 0.88rem;
+}
+
+.yearly-year-pick-label {
+  color: #5c5a55;
+  font-weight: 500;
+}
+
+.yearly-year-select {
+  font-size: 0.95rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: 6px;
+  border: 1px solid #d8d4cc;
+  background: #faf9f6;
+  max-width: 10rem;
+}
+
+.yearly-worth-card {
+  margin-bottom: 1.5rem;
+  padding: 1rem 1.15rem;
+  background: linear-gradient(145deg, #f7f5f0 0%, #efe9e0 100%);
+  border: 1px solid #e0dcd4;
+  border-radius: 10px;
+}
+
+.yearly-worth-label {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #5c5a55;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.yearly-worth-value {
+  margin: 0.35rem 0 0.5rem;
+  font-size: 1.85rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: #1f1d1a;
+}
+
+.yearly-worth-foot {
+  margin: 0;
+  font-size: 0.82rem;
+  max-width: 36rem;
+  line-height: 1.4;
+}
+
+.yearly-flow-block {
+  padding-top: 0.25rem;
+}
+
+.yearly-flow-heading {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.yearly-flow-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+@media (max-width: 520px) {
+  .yearly-flow-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.yearly-flow-k {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #5c5a55;
+  font-weight: 500;
+}
+
+.yearly-flow-n {
+  margin: 0.2rem 0 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.yearly-flow-pct {
+  margin: 0.15rem 0 0;
+  font-size: 0.8rem;
+}
+
+.yearly-split-bar {
+  display: grid;
+  width: 100%;
+  min-height: 14px;
+  border-radius: 7px;
+  overflow: hidden;
+  background: #ebe6de;
+  margin: 0.5rem 0 0.65rem;
+}
+
+.yearly-split-in {
+  min-height: 14px;
+  background: #3d6a45;
+}
+
+.yearly-split-out {
+  min-height: 14px;
+  background: #8b5a52;
+}
+
+.yearly-split-empty {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 14px;
+  font-size: 0.78rem;
+  padding: 0.2rem;
+}
+
+.yearly-flow-meta {
+  margin: 0;
+  font-size: 0.88rem;
+  max-width: 36rem;
+}
+
+.yearly-net {
+  font-weight: 600;
+  color: #2c2a26;
+}

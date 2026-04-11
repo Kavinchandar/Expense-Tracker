@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
+import pytest
+
 import db as db_module
 from data.models.statement import StatementUpload, StoredTransaction
 from services.transaction_fingerprint import (
@@ -154,3 +156,55 @@ def test_patch_category_rejects_deleted(client):
         json={"category": "FOOD_AND_DINING"},
     )
     assert r.status_code == 400
+
+
+def test_yearly_insights_in_out_pct_and_worth(client):
+    session = db_module.SessionLocal()
+    try:
+        upload = StatementUpload(filename="year.pdf")
+        session.add(upload)
+        session.flush()
+        fp1 = line_fingerprint_digest_from_stored(date(2024, 3, 5), 10_000.0, "salary")
+        fp2 = line_fingerprint_digest_from_stored(date(2024, 3, 6), -3_000.0, "rent")
+        session.add(
+            StoredTransaction(
+                upload_id=upload.id,
+                line_fingerprint=fp1,
+                posted_date=date(2024, 3, 5),
+                description="salary",
+                merchant_key=normalize_description("salary"),
+                amount=10_000.0,
+                balance_after=10_000.0,
+                category="INFLOW",
+            )
+        )
+        session.add(
+            StoredTransaction(
+                upload_id=upload.id,
+                line_fingerprint=fp2,
+                posted_date=date(2024, 3, 6),
+                description="rent",
+                merchant_key=normalize_description("rent"),
+                amount=-3_000.0,
+                balance_after=7_000.0,
+                category="HOUSING_AND_RENT",
+            )
+        )
+        session.commit()
+    finally:
+        session.close()
+
+    r = client.get("/api/insights/yearly", params={"year": 2024})
+    assert r.status_code == 200
+    d = r.json()
+    assert d["year"] == 2024
+    assert d["total_inflow"] == pytest.approx(10_000.0)
+    assert d["total_outflow"] == pytest.approx(3_000.0)
+    assert d["gross_movement"] == pytest.approx(13_000.0)
+    assert d["net_flow"] == pytest.approx(7_000.0)
+    assert d["inflow_pct_of_gross"] == pytest.approx(76.9, abs=0.05)
+    assert d["outflow_pct_of_gross"] == pytest.approx(23.1, abs=0.05)
+    assert d["total_worth"] == pytest.approx(7_000.0)
+
+    r2 = client.get("/api/insights/yearly", params={"year": 1969})
+    assert r2.status_code == 400

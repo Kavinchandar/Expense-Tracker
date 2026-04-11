@@ -46,3 +46,39 @@ class BudgetsPutBody(BaseModel):
 
 class InsightsResponse(BaseModel):
     insights: str
+
+
+class YearlyInsightsResponse(BaseModel):
+    year: int
+    total_inflow: float
+    total_outflow: float
+    gross_movement: float
+    net_flow: float
+    inflow_pct_of_gross: float
+    outflow_pct_of_gross: float
+    total_worth: Optional[float] = None
+
+
+class SurplusBudgetsResponse(BaseModel):
+    year: int
+    month: int
+    budgets: Dict[str, float]
+
+
+class SurplusBudgetsPutBody(BaseModel):
+    budgets: Dict[str, float] = Field(default_factory=dict)
+
+
+class SurplusMonthlySeriesItem(BaseModel):
+    year: int
+    month: int
+    total_inflow: float
+    total_outflow: float
+    surplus: float
+
+
+class SurplusMonthlySeriesResponse(BaseModel):
+    end_year: int
+    end_month: int
+    months: int
+    series: List[SurplusMonthlySeriesItem]

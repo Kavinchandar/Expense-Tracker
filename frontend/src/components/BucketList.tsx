@@ -1,13 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { TransactionsPayload } from "../api";
 import { DELETED_BUCKET_KEY } from "../bucketOrder";
-
-function formatAmount(n: number): string {
-  return n.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
+import { formatInr } from "../formatInr";
 
 type Props = {
   data: TransactionsPayload | null;
@@ -141,7 +135,7 @@ export function BucketList({
         </h2>
         <p className="muted">Calendar month · {data.display_timezone}</p>
         <p className="month-total">
-          Net total: <strong>{formatAmount(data.month_total)}</strong>
+          Net total: <strong>{formatInr(data.month_total)}</strong>
           {allRowsSorted.length > 0 || hasDeleted ? (
             <span className="tx-count muted">
               {" "}
@@ -161,18 +155,18 @@ export function BucketList({
         <dl className="tx-period-summary">
           <div>
             <dt>Total inflow</dt>
-            <dd>{formatAmount(data.total_inflow)}</dd>
+            <dd>{formatInr(data.total_inflow)}</dd>
           </div>
           <div>
             <dt>Total outflow</dt>
-            <dd>{formatAmount(data.total_outflow)}</dd>
+            <dd>{formatInr(data.total_outflow)}</dd>
           </div>
           <div>
             <dt>Balance at period start</dt>
             <dd>
               {data.opening_balance == null
                 ? "—"
-                : formatAmount(data.opening_balance)}
+                : formatInr(data.opening_balance)}
             </dd>
           </div>
           <div>
@@ -180,7 +174,7 @@ export function BucketList({
             <dd>
               {data.closing_balance == null
                 ? "—"
-                : formatAmount(data.closing_balance)}
+                : formatInr(data.closing_balance)}
             </dd>
           </div>
         </dl>
@@ -266,7 +260,7 @@ export function BucketList({
                       </span>
                     </td>
                     <td className="col-amt tx-amt">
-                      {formatAmount(t.amount)}
+                      {formatInr(t.amount)}
                     </td>
                     <td className="category-cell col-cat">
                       <select
@@ -342,7 +336,7 @@ export function BucketList({
                         </span>
                       </td>
                       <td className="col-amt tx-amt">
-                        {formatAmount(t.amount)}
+                        {formatInr(t.amount)}
                       </td>
                       <td className="col-restore">
                         <button
@@ -377,7 +371,7 @@ export function BucketList({
                   {categoryLabels[b.name] ?? humanizeCategory(b.name)}
                 </span>
                 <span className="bucket-summary-meta">
-                  {b.transactions.length} · {formatAmount(b.total)}
+                  {b.transactions.length} · {formatInr(b.total)}
                 </span>
               </li>
             ))}
@@ -387,7 +381,7 @@ export function BucketList({
                   {categoryLabels[DELETED_BUCKET_KEY] ?? "Deleted"}
                 </span>
                 <span className="bucket-summary-meta">
-                  {deletedRows.length} · {formatAmount(deletedBucket?.total ?? 0)}
+                  {deletedRows.length} · {formatInr(deletedBucket?.total ?? 0)}
                 </span>
               </li>
             ) : null}

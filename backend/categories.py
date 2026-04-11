@@ -58,3 +58,18 @@ SPENDING_BUCKET_KEYS: tuple[str, ...] = (
     "ACTIVITIES",
     "UNCATEGORIZED",
 )
+
+# Global surplus allocation targets (envelope order: term → health → contingency → investments).
+SURPLUS_CATEGORIES: tuple[str, ...] = (
+    "TERM_INSURANCE",
+    "HEALTH_INSURANCE",
+    "CONTINGENCY_FUND",
+    "INVESTMENTS",
+)
+
+SURPLUS_LABELS: dict[str, str] = {
+    "TERM_INSURANCE": "Term insurance",
+    "HEALTH_INSURANCE": "Health insurance",
+    "CONTINGENCY_FUND": "Contingency fund",
+    "INVESTMENTS": "Investments",
+}

@@ -9,6 +9,7 @@ Removes:
   - All stored bank lines (stored_transactions)
   - All PDF upload records (statement_uploads)
   - Budget defaults (budget_defaults)
+  - Surplus defaults (surplus_defaults)
   - Legacy per-month budgets (monthly_budgets) if present
 
 Does not delete the database file itself; tables stay empty.
@@ -27,6 +28,7 @@ from sqlalchemy import delete, inspect
 from data.models.budget_default import BudgetDefault
 from data.models.monthly_budget import MonthlyBudget
 from data.models.statement import StatementUpload, StoredTransaction
+from data.models.surplus_default import SurplusDefault
 from db import SessionLocal, engine
 
 
@@ -47,9 +49,12 @@ def main() -> None:
         tx_n = session.execute(delete(StoredTransaction)).rowcount or 0
         up_n = session.execute(delete(StatementUpload)).rowcount or 0
         bd_n = 0
+        sd_n = 0
         mb_n = 0
         if insp.has_table("budget_defaults"):
             bd_n = session.execute(delete(BudgetDefault)).rowcount or 0
+        if insp.has_table("surplus_defaults"):
+            sd_n = session.execute(delete(SurplusDefault)).rowcount or 0
         if insp.has_table("monthly_budgets"):
             mb_n = session.execute(delete(MonthlyBudget)).rowcount or 0
 
@@ -57,7 +62,8 @@ def main() -> None:
 
         print(
             "Cleared:",
-            f"transactions={tx_n}, uploads={up_n}, budget_defaults={bd_n}, monthly_budgets={mb_n}",
+            f"transactions={tx_n}, uploads={up_n}, budget_defaults={bd_n}, "
+            f"surplus_defaults={sd_n}, monthly_budgets={mb_n}",
         )
         print("Done. You can upload statements again.")
     finally:

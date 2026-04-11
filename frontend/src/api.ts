@@ -55,6 +55,26 @@ export async function getInsights(
   return r.json();
 }
 
+export type YearlyInsightsPayload = {
+  year: number;
+  total_inflow: number;
+  total_outflow: number;
+  gross_movement: number;
+  net_flow: number;
+  inflow_pct_of_gross: number;
+  outflow_pct_of_gross: number;
+  total_worth: number | null;
+};
+
+export async function getYearlyInsights(
+  year: number
+): Promise<YearlyInsightsPayload> {
+  const q = new URLSearchParams({ year: String(year) });
+  const r = await fetch(`${API}/insights/yearly?${q}`);
+  if (!r.ok) throw new Error(await readHttpError(r));
+  return r.json() as Promise<YearlyInsightsPayload>;
+}
+
 export async function getTransactions(
   year: number,
   month: number
@@ -106,6 +126,84 @@ export async function saveBudgets(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ budgets }),
   });
+  if (!r.ok) throw new Error(await readHttpError(r));
+  return r.json();
+}
+
+/** Envelope order for surplus allocation (matches backend `SURPLUS_CATEGORIES`). */
+export const SURPLUS_KEYS = [
+  "TERM_INSURANCE",
+  "HEALTH_INSURANCE",
+  "CONTINGENCY_FUND",
+  "INVESTMENTS",
+] as const;
+
+export type SurplusKey = (typeof SURPLUS_KEYS)[number];
+
+export const SURPLUS_LABELS: Record<SurplusKey, string> = {
+  TERM_INSURANCE: "Term insurance",
+  HEALTH_INSURANCE: "Health insurance",
+  CONTINGENCY_FUND: "Contingency fund",
+  INVESTMENTS: "Investments",
+};
+
+export type SurplusMonthlyRow = {
+  year: number;
+  month: number;
+  total_inflow: number;
+  total_outflow: number;
+  surplus: number;
+};
+
+export type SurplusMonthlySeriesPayload = {
+  end_year: number;
+  end_month: number;
+  months: number;
+  series: SurplusMonthlyRow[];
+};
+
+export async function getSurplusBudgets(
+  year: number,
+  month: number
+): Promise<{ year: number; month: number; budgets: Record<string, number> }> {
+  const q = new URLSearchParams({
+    year: String(year),
+    month: String(month),
+  });
+  const r = await fetch(`${API}/surplus/budgets?${q}`);
+  if (!r.ok) throw new Error(await readHttpError(r));
+  return r.json();
+}
+
+export async function saveSurplusBudgets(
+  year: number,
+  month: number,
+  budgets: Record<string, number>
+): Promise<{ year: number; month: number; budgets: Record<string, number> }> {
+  const q = new URLSearchParams({
+    year: String(year),
+    month: String(month),
+  });
+  const r = await fetch(`${API}/surplus/budgets?${q}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ budgets }),
+  });
+  if (!r.ok) throw new Error(await readHttpError(r));
+  return r.json();
+}
+
+export async function getSurplusMonthly(
+  endYear: number,
+  endMonth: number,
+  months: number
+): Promise<SurplusMonthlySeriesPayload> {
+  const q = new URLSearchParams({
+    end_year: String(endYear),
+    end_month: String(endMonth),
+    months: String(months),
+  });
+  const r = await fetch(`${API}/surplus/monthly?${q}`);
   if (!r.ok) throw new Error(await readHttpError(r));
   return r.json();
 }
