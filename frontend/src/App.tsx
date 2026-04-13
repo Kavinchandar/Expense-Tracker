@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  clearAllTransactions,
+  clearMonthTransactions,
   deleteTransaction,
   getBudgets,
   getCategories,
@@ -50,6 +52,9 @@ export default function App() {
   const [uploadMsg, setUploadMsg] = useState<string | null>(null);
   const [uploadErr, setUploadErr] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [clearingData, setClearingData] = useState(false);
+  const [clearMsg, setClearMsg] = useState<string | null>(null);
+  const [clearErr, setClearErr] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const { year, monthNum } = useMemo(() => {
@@ -148,6 +153,48 @@ export default function App() {
 
   const onPickFile = () => fileRef.current?.click();
 
+  const onClearMonth = useCallback(async () => {
+    const ok = window.confirm(
+      `Clear all transactions for ${year}-${String(monthNum).padStart(2, "0")}? This cannot be undone.`
+    );
+    if (!ok) return;
+    setClearErr(null);
+    setClearMsg(null);
+    setClearingData(true);
+    try {
+      const res = await clearMonthTransactions(year, monthNum);
+      setClearMsg(
+        `Cleared ${res.deleted_count} transaction${res.deleted_count === 1 ? "" : "s"} for ${year}-${String(monthNum).padStart(2, "0")}.`
+      );
+      await loadTransactions();
+    } catch (err: unknown) {
+      setClearErr(err instanceof Error ? err.message : String(err));
+    } finally {
+      setClearingData(false);
+    }
+  }, [loadTransactions, monthNum, year]);
+
+  const onClearAll = useCallback(async () => {
+    const ok = window.confirm(
+      "Clear all transactions across every month? This cannot be undone."
+    );
+    if (!ok) return;
+    setClearErr(null);
+    setClearMsg(null);
+    setClearingData(true);
+    try {
+      const res = await clearAllTransactions();
+      setClearMsg(
+        `Cleared ${res.deleted_count} transaction${res.deleted_count === 1 ? "" : "s"} across all months.`
+      );
+      await loadTransactions();
+    } catch (err: unknown) {
+      setClearErr(err instanceof Error ? err.message : String(err));
+    } finally {
+      setClearingData(false);
+    }
+  }, [loadTransactions]);
+
   const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -218,11 +265,33 @@ export default function App() {
               description, and amount.
             </p>
           </div>
-          <MonthPicker value={month} onChange={setMonth} />
+          <div className="toolbar-right">
+            <MonthPicker value={month} onChange={setMonth} />
+            <div className="danger-actions">
+              <button
+                type="button"
+                className="btn-danger"
+                onClick={onClearMonth}
+                disabled={clearingData}
+              >
+                {clearingData ? "Clearing..." : "Clear this month"}
+              </button>
+              <button
+                type="button"
+                className="btn-danger btn-danger-soft"
+                onClick={onClearAll}
+                disabled={clearingData}
+              >
+                {clearingData ? "Clearing..." : "Clear all transactions"}
+              </button>
+            </div>
+          </div>
         </section>
 
         {uploadErr ? <p className="error">{uploadErr}</p> : null}
         {uploadMsg ? <p className="upload-msg muted">{uploadMsg}</p> : null}
+        {clearErr ? <p className="error">{clearErr}</p> : null}
+        {clearMsg ? <p className="upload-msg muted">{clearMsg}</p> : null}
 
         <section className="card app-tab-bar" aria-label="Main views">
           <div className="app-tabs" role="tablist">

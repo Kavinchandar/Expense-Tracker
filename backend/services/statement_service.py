@@ -215,3 +215,16 @@ class StatementService:
         if not ok:
             raise NotFoundError("Transaction not found or not deleted.")
         self._session.commit()
+
+    def clear_month_transactions(self, year: int, month: int) -> int:
+        start, end = month_date_range(year, month)
+        deleted_count = self._stored.delete_in_date_range(start, end)
+        self._uploads.delete_uploads_with_no_transactions()
+        self._session.commit()
+        return deleted_count
+
+    def clear_all_transactions(self) -> int:
+        deleted_count = self._stored.delete_all()
+        self._uploads.delete_uploads_with_no_transactions()
+        self._session.commit()
+        return deleted_count

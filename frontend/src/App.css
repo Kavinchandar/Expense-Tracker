@@ -39,6 +39,13 @@
   gap: 1rem;
 }
 
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
 .connected {
   margin: 0;
   font-weight: 500;
@@ -60,6 +67,32 @@
 }
 
 .btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.danger-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.btn-danger {
+  background: #8b1c1c;
+  color: #fff;
+  border: 1px solid #8b1c1c;
+  padding: 0.48rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.btn-danger-soft {
+  background: #fff6f6;
+  color: #8b1c1c;
+}
+
+.btn-danger:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
@@ -218,6 +251,9 @@
 .tx-sort-row {
   margin: 0.85rem 0 0;
   font-size: 0.9rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
 }
 
 .tx-sort-label {

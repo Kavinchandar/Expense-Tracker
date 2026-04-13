@@ -24,6 +24,11 @@ class StoredTransactionRepository:
         result = self._session.execute(stmt)
         return int(result.rowcount or 0)
 
+    def delete_all(self) -> int:
+        """Remove all stored lines across all months."""
+        result = self._session.execute(delete(StoredTransaction))
+        return int(result.rowcount or 0)
+
     def list_for_date_range(self, start: date, end: date) -> list[StoredTransaction]:
         q = (
             select(StoredTransaction)

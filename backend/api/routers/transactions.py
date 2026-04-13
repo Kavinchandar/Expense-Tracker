@@ -52,6 +52,26 @@ def delete_transaction(
     return {"ok": True}
 
 
+@router.delete("/transactions/clear/month")
+def clear_month_transactions(
+    year: int,
+    month: int,
+    db: Session = Depends(get_db),
+):
+    svc = StatementService(db)
+    deleted_count = svc.clear_month_transactions(year, month)
+    return {"ok": True, "deleted_count": deleted_count}
+
+
+@router.delete("/transactions/clear/all")
+def clear_all_transactions(
+    db: Session = Depends(get_db),
+):
+    svc = StatementService(db)
+    deleted_count = svc.clear_all_transactions()
+    return {"ok": True, "deleted_count": deleted_count}
+
+
 @router.post("/transactions/{transaction_id}/restore")
 def restore_transaction(
     transaction_id: str,

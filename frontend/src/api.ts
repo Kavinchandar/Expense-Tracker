@@ -279,3 +279,28 @@ export async function restoreTransaction(transactionId: string): Promise<void> {
   );
   if (!r.ok) throw new Error(await readHttpError(r));
 }
+
+export async function clearMonthTransactions(
+  year: number,
+  month: number
+): Promise<{ deleted_count: number }> {
+  const q = new URLSearchParams({
+    year: String(year),
+    month: String(month),
+  });
+  const r = await fetch(`${API}/transactions/clear/month?${q}`, {
+    method: "DELETE",
+  });
+  if (!r.ok) throw new Error(await readHttpError(r));
+  const body = (await r.json()) as { deleted_count?: unknown };
+  return { deleted_count: Number(body.deleted_count ?? 0) };
+}
+
+export async function clearAllTransactions(): Promise<{ deleted_count: number }> {
+  const r = await fetch(`${API}/transactions/clear/all`, {
+    method: "DELETE",
+  });
+  if (!r.ok) throw new Error(await readHttpError(r));
+  const body = (await r.json()) as { deleted_count?: unknown };
+  return { deleted_count: Number(body.deleted_count ?? 0) };
+}

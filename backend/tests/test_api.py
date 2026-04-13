@@ -158,6 +158,98 @@ def test_patch_category_rejects_deleted(client):
     assert r.status_code == 400
 
 
+def test_clear_month_transactions(client):
+    session = db_module.SessionLocal()
+    try:
+        upload = StatementUpload(filename="clear-month.pdf")
+        session.add(upload)
+        session.flush()
+        june_fp = line_fingerprint_digest_from_stored(date(2024, 6, 10), -4.0, "june cafe")
+        july_fp = line_fingerprint_digest_from_stored(date(2024, 7, 10), -9.0, "july cafe")
+        session.add(
+            StoredTransaction(
+                upload_id=upload.id,
+                line_fingerprint=june_fp,
+                posted_date=date(2024, 6, 10),
+                description="june cafe",
+                merchant_key=normalize_description("june cafe"),
+                amount=-4.0,
+                category="FOOD_AND_DINING",
+            )
+        )
+        session.add(
+            StoredTransaction(
+                upload_id=upload.id,
+                line_fingerprint=july_fp,
+                posted_date=date(2024, 7, 10),
+                description="july cafe",
+                merchant_key=normalize_description("july cafe"),
+                amount=-9.0,
+                category="FOOD_AND_DINING",
+            )
+        )
+        session.commit()
+    finally:
+        session.close()
+
+    r = client.delete("/api/transactions/clear/month", params={"year": 2024, "month": 6})
+    assert r.status_code == 200
+    assert r.json()["deleted_count"] == 1
+
+    june = client.get("/api/transactions", params={"year": 2024, "month": 6})
+    july = client.get("/api/transactions", params={"year": 2024, "month": 7})
+    assert june.status_code == 200
+    assert july.status_code == 200
+    assert june.json()["buckets"] == []
+    assert july.json()["month_total"] == -9.0
+
+
+def test_clear_all_transactions(client):
+    session = db_module.SessionLocal()
+    try:
+        upload = StatementUpload(filename="clear-all.pdf")
+        session.add(upload)
+        session.flush()
+        one_fp = line_fingerprint_digest_from_stored(date(2024, 6, 10), -4.0, "one")
+        two_fp = line_fingerprint_digest_from_stored(date(2024, 7, 10), -9.0, "two")
+        session.add(
+            StoredTransaction(
+                upload_id=upload.id,
+                line_fingerprint=one_fp,
+                posted_date=date(2024, 6, 10),
+                description="one",
+                merchant_key=normalize_description("one"),
+                amount=-4.0,
+                category="FOOD_AND_DINING",
+            )
+        )
+        session.add(
+            StoredTransaction(
+                upload_id=upload.id,
+                line_fingerprint=two_fp,
+                posted_date=date(2024, 7, 10),
+                description="two",
+                merchant_key=normalize_description("two"),
+                amount=-9.0,
+                category="FOOD_AND_DINING",
+            )
+        )
+        session.commit()
+    finally:
+        session.close()
+
+    r = client.delete("/api/transactions/clear/all")
+    assert r.status_code == 200
+    assert r.json()["deleted_count"] == 2
+
+    june = client.get("/api/transactions", params={"year": 2024, "month": 6})
+    july = client.get("/api/transactions", params={"year": 2024, "month": 7})
+    assert june.status_code == 200
+    assert july.status_code == 200
+    assert june.json()["buckets"] == []
+    assert july.json()["buckets"] == []
+
+
 def test_yearly_insights_in_out_pct_and_worth(client):
     session = db_module.SessionLocal()
     try:

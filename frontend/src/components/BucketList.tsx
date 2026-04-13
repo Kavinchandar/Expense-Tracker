@@ -28,9 +28,11 @@ export function BucketList({
   const [patchErr, setPatchErr] = useState<string | null>(null);
   /** Empty string = show all categories. */
   const [filterCategory, setFilterCategory] = useState<string>("");
+  const [sortMode, setSortMode] = useState<"date_desc" | "amount_desc" | "amount_asc">("date_desc");
 
   useEffect(() => {
     setFilterCategory("");
+    setSortMode("date_desc");
   }, [data?.year, data?.month]);
 
   const activeBuckets = useMemo(
@@ -49,12 +51,19 @@ export function BucketList({
     if (!activeBuckets.length) return [];
     const rows = activeBuckets.flatMap((b) => b.transactions);
     rows.sort((a, b) => {
+      if (sortMode === "amount_desc") {
+        const byAmount = b.amount - a.amount;
+        if (byAmount !== 0) return byAmount;
+      } else if (sortMode === "amount_asc") {
+        const byAmount = a.amount - b.amount;
+        if (byAmount !== 0) return byAmount;
+      }
       const byDate = b.date.localeCompare(a.date);
       if (byDate !== 0) return byDate;
       return String(b.transaction_id).localeCompare(String(a.transaction_id));
     });
     return rows;
-  }, [activeBuckets]);
+  }, [activeBuckets, sortMode]);
 
   const categoryChoices = useMemo(() => {
     const set = new Set<string>();
@@ -178,7 +187,7 @@ export function BucketList({
             </dd>
           </div>
         </dl>
-        <p className="tx-sort-row">
+        <div className="tx-sort-row">
           <label className="tx-sort-label">
             Show transactions{" "}
             <select
@@ -194,7 +203,23 @@ export function BucketList({
               ))}
             </select>
           </label>
-        </p>
+          <label className="tx-sort-label">
+            Sort by{" "}
+            <select
+              className="tx-sort-select"
+              value={sortMode}
+              onChange={(e) =>
+                setSortMode(
+                  e.target.value as "date_desc" | "amount_desc" | "amount_asc"
+                )
+              }
+            >
+              <option value="date_desc">Date (newest first)</option>
+              <option value="amount_desc">Amount (high to low)</option>
+              <option value="amount_asc">Amount (low to high)</option>
+            </select>
+          </label>
+        </div>
         <p className="tx-list-hint muted">
           Active rows: assign a bucket or use <strong>Delete</strong> in the last
           column (sticky on the right if the table scrolls sideways). Deleted rows
