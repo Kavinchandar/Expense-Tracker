@@ -48,6 +48,10 @@ BUCKET_LABELS: dict[str, str] = {
     "UNCATEGORIZED": "Uncategorized",
 }
 
+# Expense-bucket debits treated as surplus allocation (savings/investments), not
+# consumption outflow. They do not reduce reported total_outflow or monthly surplus.
+SURPLUS_ALLOCATION_EXPENSE_KEYS: tuple[str, ...] = ("FDS", "INVESTMENTS")
+
 # Keys that represent spending (outflows); used for summaries / charts
 SPENDING_BUCKET_KEYS: tuple[str, ...] = (
     "HOUSING_AND_RENT",

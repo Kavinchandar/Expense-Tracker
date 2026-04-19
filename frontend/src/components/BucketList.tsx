@@ -12,6 +12,8 @@ type Props = {
   assignCategory: (transactionId: string, category: string) => Promise<void>;
   onDeleteTransaction: (transactionId: string) => Promise<void>;
   onRestoreTransaction: (transactionId: string) => Promise<void>;
+  /** When set, only these bucket categories are listed (e.g. surplus allocation). */
+  onlyCategories?: readonly string[];
 };
 
 export function BucketList({
@@ -23,6 +25,7 @@ export function BucketList({
   assignCategory,
   onDeleteTransaction,
   onRestoreTransaction,
+  onlyCategories,
 }: Props) {
   const [patchingId, setPatchingId] = useState<string | null>(null);
   const [patchErr, setPatchErr] = useState<string | null>(null);
@@ -35,10 +38,21 @@ export function BucketList({
     setSortMode("date_desc");
   }, [data?.year, data?.month]);
 
-  const activeBuckets = useMemo(
-    () => (data?.buckets ?? []).filter((b) => b.name !== DELETED_BUCKET_KEY),
-    [data?.buckets]
+  const allowOnly = useMemo(
+    () =>
+      onlyCategories && onlyCategories.length > 0
+        ? new Set(onlyCategories)
+        : null,
+    [onlyCategories]
   );
+
+  const activeBuckets = useMemo(() => {
+    let list = (data?.buckets ?? []).filter((b) => b.name !== DELETED_BUCKET_KEY);
+    if (allowOnly) {
+      list = list.filter((b) => allowOnly.has(b.name));
+    }
+    return list;
+  }, [data?.buckets, allowOnly]);
 
   const deletedBucket = useMemo(
     () => (data?.buckets ?? []).find((b) => b.name === DELETED_BUCKET_KEY),
@@ -46,6 +60,11 @@ export function BucketList({
   );
 
   const deletedRows = deletedBucket?.transactions ?? [];
+
+  const surplusSectionNet = useMemo(() => {
+    if (!allowOnly) return null;
+    return activeBuckets.reduce((s, b) => s + b.total, 0);
+  }, [allowOnly, activeBuckets]);
 
   const allRowsSorted = useMemo(() => {
     if (!activeBuckets.length) return [];
@@ -74,14 +93,17 @@ export function BucketList({
         set.add(b.name);
       }
     }
-    const arr = [...set];
+    let arr = [...set];
+    if (allowOnly) {
+      arr = arr.filter((c) => allowOnly.has(c));
+    }
     arr.sort((a, b) =>
       (categoryLabels[a] ?? humanizeCategory(a)).localeCompare(
         categoryLabels[b] ?? humanizeCategory(b)
       )
     );
     return arr;
-  }, [data, categories, categoryLabels]);
+  }, [data, categories, categoryLabels, allowOnly]);
 
   const flatRows = useMemo(() => {
     if (!filterCategory) return allRowsSorted;
@@ -140,11 +162,28 @@ export function BucketList({
     <div className="tx-list">
       <header className="bucket-header">
         <h2>
-          {data.year}-{String(data.month).padStart(2, "0")}
+          {allowOnly
+            ? "Surplus allocation transactions"
+            : `${data.year}-${String(data.month).padStart(2, "0")}`}
         </h2>
-        <p className="muted">Calendar month · {data.display_timezone}</p>
+        <p className="muted">
+          {allowOnly
+            ? `${[...allowOnly]
+                .map((k) => categoryLabels[k] ?? humanizeCategory(k))
+                .join(" · ")} · ${data.year}-${String(data.month).padStart(2, "0")} · ${data.display_timezone}`
+            : `Calendar month · ${data.display_timezone}`}
+        </p>
         <p className="month-total">
-          Net total: <strong>{formatInr(data.month_total)}</strong>
+          {allowOnly ? (
+            <>
+              FD &amp; investment total:{" "}
+              <strong>{formatInr(surplusSectionNet ?? 0)}</strong>
+            </>
+          ) : (
+            <>
+              Net total: <strong>{formatInr(data.month_total)}</strong>
+            </>
+          )}
           {allRowsSorted.length > 0 || hasDeleted ? (
             <span className="tx-count muted">
               {" "}
@@ -221,9 +260,19 @@ export function BucketList({
           </label>
         </div>
         <p className="tx-list-hint muted">
-          Active rows: assign a bucket or use <strong>Delete</strong> in the last
-          column (sticky on the right if the table scrolls sideways). Deleted rows
-          are listed below and stay out of totals and insights.
+          {allowOnly ? (
+            <>
+              FD and investment debits are excluded from consumption outflow and
+              count toward surplus. Assign categories on{" "}
+              <strong>Overview</strong> if a line is missing here.
+            </>
+          ) : (
+            <>
+              Active rows: assign a bucket or use <strong>Delete</strong> in the last
+              column (sticky on the right if the table scrolls sideways). Deleted
+              rows are listed below and stay out of totals and insights.
+            </>
+          )}
         </p>
       </header>
 
@@ -231,8 +280,9 @@ export function BucketList({
 
       {showMainEmpty ? (
         <p className="muted">
-          No transactions for this month. Upload a PDF that includes dates in this
-          month, or pick another month.
+          {allowOnly
+            ? "No FD or investment transactions for this month. Categorize debits as FDs or Investments on Overview, or pick another month."
+            : "No transactions for this month. Upload a PDF that includes dates in this month, or pick another month."}
         </p>
       ) : null}
 
@@ -325,7 +375,7 @@ export function BucketList({
         </div>
       ) : null}
 
-      {hasDeleted ? (
+      {hasDeleted && !allowOnly ? (
         <section className="tx-deleted-section card-inner" aria-labelledby="deleted-heading">
           <h3 id="deleted-heading" className="tx-deleted-heading">
             Deleted

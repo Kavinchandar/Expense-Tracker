@@ -6,7 +6,11 @@ from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
-from categories import DELETED_BUCKET_KEY, EXPENSE_CATEGORIES
+from categories import (
+    DELETED_BUCKET_KEY,
+    EXPENSE_CATEGORIES,
+    SURPLUS_ALLOCATION_EXPENSE_KEYS,
+)
 from config import get_settings
 from data.repositories.statement_upload_repository import StatementUploadRepository
 from data.repositories.stored_transaction_repository import StoredTransactionRepository
@@ -44,7 +48,12 @@ class UploadStatementResult:
 def _period_cashflow_and_balances(rows: list[StoredTransaction]) -> tuple[float, float, float | None, float | None]:
     """Sum credits/debits; opening/closing from running balance when ICICI stored it."""
     total_inflow = sum(t.amount for t in rows if t.amount > 0)
-    total_outflow = sum(-t.amount for t in rows if t.amount < 0)
+    surplus_alloc = set(SURPLUS_ALLOCATION_EXPENSE_KEYS)
+    total_outflow = sum(
+        -t.amount
+        for t in rows
+        if t.amount < 0 and t.category not in surplus_alloc
+    )
     if not rows:
         return total_inflow, total_outflow, None, None
     ordered = sorted(rows, key=lambda t: (t.posted_date, t.id))

@@ -374,6 +374,14 @@ export default function App() {
               month={monthNum}
               surplusBudgets={surplusBudgets}
               onSurplusBudgetsSaved={setSurplusBudgets}
+              tx={tx}
+              txLoading={txLoading}
+              txError={txError}
+              categories={categories}
+              categoryLabels={categoryLabels}
+              assignCategory={assignCategory}
+              onDeleteTransaction={removeTransaction}
+              onRestoreTransaction={restoreTxn}
             />
           </section>
         ) : (

@@ -5,6 +5,7 @@ from datetime import date, datetime, timezone
 from sqlalchemy import Integer, case, cast, delete, func, select
 from sqlalchemy.orm import Session
 
+from categories import SURPLUS_ALLOCATION_EXPENSE_KEYS
 from data.models.statement import StoredTransaction
 from services.transaction_fingerprint import fingerprint_from_stored
 
@@ -97,7 +98,20 @@ class StoredTransactionRepository:
             0.0,
         )
         outflow = func.coalesce(
-            func.sum(case((StoredTransaction.amount < 0, -StoredTransaction.amount), else_=0.0)),
+            func.sum(
+                case(
+                    (
+                        (StoredTransaction.amount < 0)
+                        & (
+                            StoredTransaction.category.notin_(
+                                list(SURPLUS_ALLOCATION_EXPENSE_KEYS)
+                            )
+                        ),
+                        -StoredTransaction.amount,
+                    ),
+                    else_=0.0,
+                )
+            ),
             0.0,
         )
         q = (
@@ -124,7 +138,20 @@ class StoredTransactionRepository:
             0.0,
         )
         outflow = func.coalesce(
-            func.sum(case((StoredTransaction.amount < 0, -StoredTransaction.amount), else_=0.0)),
+            func.sum(
+                case(
+                    (
+                        (StoredTransaction.amount < 0)
+                        & (
+                            StoredTransaction.category.notin_(
+                                list(SURPLUS_ALLOCATION_EXPENSE_KEYS)
+                            )
+                        ),
+                        -StoredTransaction.amount,
+                    ),
+                    else_=0.0,
+                )
+            ),
             0.0,
         )
         q = select(inflow, outflow).where(

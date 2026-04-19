@@ -142,6 +142,12 @@ export async function saveBudgets(
   return r.json();
 }
 
+/**
+ * Expense buckets whose debits are surplus allocation (savings/investments), not
+ * consumption outflow. Matches backend `SURPLUS_ALLOCATION_EXPENSE_KEYS`.
+ */
+export const SURPLUS_ALLOCATION_TX_CATEGORIES = ["FDS", "INVESTMENTS"] as const;
+
 /** Envelope order for surplus allocation (matches backend `SURPLUS_CATEGORIES`). */
 export const SURPLUS_KEYS = [
   "TERM_INSURANCE",

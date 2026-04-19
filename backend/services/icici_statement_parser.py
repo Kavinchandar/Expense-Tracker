@@ -76,6 +76,25 @@ def _norm(parts: list[str]) -> str:
     return " ".join(p.strip() for p in parts if p.strip())
 
 
+def _desc_and_remainder_from_pending_pre(
+    pending_pre: list[str], serial: str
+) -> tuple[str, list[str]]:
+    """
+    Build the description for the next anchor line and what to keep for later rows.
+
+    PDF text often lists the *next* transaction's ``UPI/...`` block before the serial
+    line for the *current* row. Joining every ``pending_pre`` line used to merge two
+    merchants into one description ("clubbing"). We attach one leading ``UPI/`` line
+    per anchor; any extra ``UPI/`` lines stay in ``pending_pre`` for the next anchor.
+    """
+    if not pending_pre:
+        return (f"Transaction {serial}", [])
+    first = pending_pre[0].strip()
+    if first.upper().startswith("UPI/"):
+        return (first, pending_pre[1:])
+    return (_norm(pending_pre), [])
+
+
 def parse_icici_savings_statement_text(text: str) -> list[dict[str, Any]]:
     """
     Parse concatenated PDF text from an ICICI savings transaction statement.
@@ -104,8 +123,9 @@ def parse_icici_savings_statement_text(text: str) -> list[dict[str, Any]]:
         if m:
             seen_anchor = True
             flush_post_to_last()
-            desc = _norm(pending_pre)
-            pending_pre = []
+            desc, pending_pre = _desc_and_remainder_from_pending_pre(
+                pending_pre, m.group(1)
+            )
             if len(desc) < 2:
                 desc = f"Transaction {m.group(1)}"
             descriptions.append(desc)

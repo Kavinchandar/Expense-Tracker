@@ -22,6 +22,25 @@ def test_looks_like_icici():
     assert looks_like_icici_savings_statement(sample)
 
 
+def test_parse_icici_splits_consecutive_upi_lines_across_serial_rows():
+    """When two UPI blocks appear before the first serial line, each pairs with one row."""
+    text = """
+    Statement of Transactions in Saving Account in INR for ICICI
+    UPI/GLEN S BAK/paytm/pay/ICICI
+    UPI/Royal Mart/Q833@ybl/Pay/ICICI
+    1 13.04.2026 501101.00 898553.00
+    Bank/109285776653/ref
+    2 13.04.2026 100447.00 798106.00
+    """
+    rows = parse_icici_savings_statement_text(text)
+    assert len(rows) == 2
+    by_amt = {r["amount"]: r for r in rows}
+    assert "GLEN S BAK" in by_amt[-501101.0]["description"]
+    assert "Royal Mart" in by_amt[-100447.0]["description"]
+    assert "Royal Mart" not in by_amt[-501101.0]["description"]
+    assert "GLEN S BAK" not in by_amt[-100447.0]["description"]
+
+
 def test_parse_icici_merges_remarks_and_tail():
     text = """
     Statement of Transactions in Saving Account in INR for ICICI

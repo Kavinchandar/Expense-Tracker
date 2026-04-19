@@ -162,8 +162,9 @@ export function SurplusPieChart({ year, month, row, surplusBudgets }: Props) {
         <h4 className="surplus-pie-title">Surplus split (selected month)</h4>
         <p className="muted surplus-pie-sub">{monthLabel}</p>
         <p className="muted surplus-pie-empty">
-          No cash surplus this month (inflow minus outflow is zero or negative). Pie
-          slices appear when surplus is positive.
+          No cash surplus this month (inflow minus consumption outflow is zero or
+          negative). FD and investment debits do not count as consumption outflow.
+          Pie slices appear when surplus is positive.
         </p>
         <p className="muted surplus-pie-meta">
           In {formatInr(row.total_inflow)} · Out {formatInr(row.total_outflow)}

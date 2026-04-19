@@ -2,10 +2,13 @@ import { useEffect, useState } from "react";
 import {
   getSurplusMonthly,
   saveSurplusBudgets,
+  SURPLUS_ALLOCATION_TX_CATEGORIES,
   SURPLUS_KEYS,
   SURPLUS_LABELS,
   type SurplusMonthlyRow,
+  type TransactionsPayload,
 } from "../api";
+import { BucketList } from "./BucketList";
 import { SurplusPieChart } from "./SurplusPieChart";
 
 type Props = {
@@ -13,6 +16,14 @@ type Props = {
   month: number;
   surplusBudgets: Record<string, number>;
   onSurplusBudgetsSaved: (budgets: Record<string, number>) => void;
+  tx: TransactionsPayload | null;
+  txLoading: boolean;
+  txError: string | null;
+  categories: string[];
+  categoryLabels: Record<string, string>;
+  assignCategory: (transactionId: string, category: string) => Promise<void>;
+  onDeleteTransaction: (transactionId: string) => Promise<void>;
+  onRestoreTransaction: (transactionId: string) => Promise<void>;
 };
 
 export function SurplusPanel({
@@ -20,6 +31,14 @@ export function SurplusPanel({
   month,
   surplusBudgets,
   onSurplusBudgetsSaved,
+  tx,
+  txLoading,
+  txError,
+  categories,
+  categoryLabels,
+  assignCategory,
+  onDeleteTransaction,
+  onRestoreTransaction,
 }: Props) {
   const [seriesLoading, setSeriesLoading] = useState(true);
   const [seriesErr, setSeriesErr] = useState<string | null>(null);
@@ -93,8 +112,9 @@ export function SurplusPanel({
       <h3 className="surplus-panel-title">Surplus allocation</h3>
       <p className="muted surplus-panel-lede">
         Split the selected month&apos;s cash surplus across your global targets
-        (pie). Month-by-month cash in, out, and surplus is on the{" "}
-        <strong>Year</strong> tab.
+        (pie). FD and investment transactions are listed below; their debits are
+        excluded from consumption outflow. Month-by-month cash in, out, and surplus
+        is on the <strong>Year</strong> tab.
       </p>
 
       {seriesErr ? <p className="error">{seriesErr}</p> : null}
@@ -142,6 +162,18 @@ export function SurplusPanel({
           {saving ? "Saving…" : "Save surplus targets"}
         </button>
       </details>
+
+      <BucketList
+        data={tx}
+        loading={txLoading}
+        error={txError}
+        categories={categories}
+        categoryLabels={categoryLabels}
+        assignCategory={assignCategory}
+        onDeleteTransaction={onDeleteTransaction}
+        onRestoreTransaction={onRestoreTransaction}
+        onlyCategories={SURPLUS_ALLOCATION_TX_CATEGORIES}
+      />
     </div>
   );
 }
