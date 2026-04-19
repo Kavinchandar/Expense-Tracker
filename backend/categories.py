@@ -22,6 +22,7 @@ EXPENSE_CATEGORIES: tuple[str, ...] = (
     "SHOPPING",
     "SUBSCRIPTIONS",
     "ACTIVITIES",
+    "SURPLUS",
     "INFLOW",
     "UNCATEGORIZED",
 )
@@ -44,13 +45,18 @@ BUCKET_LABELS: dict[str, str] = {
     "SHOPPING": "Shopping",
     "SUBSCRIPTIONS": "Subscriptions",
     "ACTIVITIES": "Activities",
+    "SURPLUS": "Surplus",
     "INFLOW": "InFlow",
     "UNCATEGORIZED": "Uncategorized",
 }
 
 # Expense-bucket debits treated as surplus allocation (savings/investments), not
 # consumption outflow. They do not reduce reported total_outflow or monthly surplus.
-SURPLUS_ALLOCATION_EXPENSE_KEYS: tuple[str, ...] = ("FDS", "INVESTMENTS")
+SURPLUS_ALLOCATION_EXPENSE_KEYS: tuple[str, ...] = ("FDS", "INVESTMENTS", "SURPLUS")
+
+# Debits in these categories also add their magnitude to total_inflow (user-tagged
+# surplus moves). FDS/INVESTMENTS debits do not—only the Surplus bucket.
+SURPLUS_DEBIT_COUNTS_TOWARD_INFLOWS_KEYS: tuple[str, ...] = ("SURPLUS",)
 
 # Keys that represent spending (outflows); used for summaries / charts
 SPENDING_BUCKET_KEYS: tuple[str, ...] = (
@@ -69,6 +75,7 @@ SPENDING_BUCKET_KEYS: tuple[str, ...] = (
     "SHOPPING",
     "SUBSCRIPTIONS",
     "ACTIVITIES",
+    "SURPLUS",
     "UNCATEGORIZED",
 )
 

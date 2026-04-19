@@ -100,7 +100,7 @@ def test_surplus_monthly_series_two_months(client):
 
 
 def test_surplus_monthly_excludes_fd_investment_from_outflow(client):
-    """FDS / INVESTMENTS debits are surplus allocation, not consumption outflow."""
+    """FDS, INVESTMENTS, and SURPLUS debits are surplus allocation, not consumption outflow."""
     session = db_module.SessionLocal()
     try:
         upload = StatementUpload(filename="seed.pdf")
@@ -125,6 +125,7 @@ def test_surplus_monthly_excludes_fd_investment_from_outflow(client):
         add_line(date(2026, 5, 2), -2_000.0, "rent", "HOUSING_AND_RENT")
         add_line(date(2026, 5, 3), -3_000.0, "mutual fund", "INVESTMENTS")
         add_line(date(2026, 5, 4), -1_000.0, "fd", "FDS")
+        add_line(date(2026, 5, 5), -500.0, "alloc", "SURPLUS")
         session.commit()
     finally:
         session.close()
@@ -136,9 +137,10 @@ def test_surplus_monthly_excludes_fd_investment_from_outflow(client):
     assert r.status_code == 200
     row = r.json()["series"][0]
     assert row["year"] == 2026 and row["month"] == 5
-    assert row["total_inflow"] == 10_000.0
+    # Surplus-tagged debit magnitude is added to inflow and not to consumption outflow.
+    assert row["total_inflow"] == 10_500.0
     assert row["total_outflow"] == 2_000.0
-    assert row["surplus"] == 8_000.0
+    assert row["surplus"] == 8_500.0
 
 
 def test_surplus_monthly_fills_missing_month_with_zeros(client):

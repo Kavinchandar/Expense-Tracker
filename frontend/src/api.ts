@@ -66,6 +66,8 @@ export type YearlyInsightsPayload = {
   inflow_pct_of_gross: number;
   outflow_pct_of_gross: number;
   total_worth: number | null;
+  /** Gross debits in FDS + Investments categories this calendar year (INR). */
+  fd_investment_debits_year: number;
 };
 
 export async function getYearlyInsights(
@@ -146,9 +148,14 @@ export async function saveBudgets(
 
 /**
  * Expense buckets whose debits are surplus allocation (savings/investments), not
- * consumption outflow. Matches backend `SURPLUS_ALLOCATION_EXPENSE_KEYS`.
+ * consumption outflow. Surplus debits also add their magnitude to inflow.
+ * Matches backend `SURPLUS_ALLOCATION_EXPENSE_KEYS` / `SURPLUS_DEBIT_COUNTS_TOWARD_INFLOWS_KEYS`.
  */
-export const SURPLUS_ALLOCATION_TX_CATEGORIES = ["FDS", "INVESTMENTS"] as const;
+export const SURPLUS_ALLOCATION_TX_CATEGORIES = [
+  "FDS",
+  "INVESTMENTS",
+  "SURPLUS",
+] as const;
 
 /** Envelope order for surplus allocation (matches backend `SURPLUS_CATEGORIES`). */
 export const SURPLUS_KEYS = [

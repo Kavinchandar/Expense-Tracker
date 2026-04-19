@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { TransactionsPayload } from "../api";
-import { saveBudgets } from "../api";
+import { saveBudgets, SURPLUS_ALLOCATION_TX_CATEGORIES } from "../api";
 import { INFLOW_KEY } from "../bucketOrder";
 import { BudgetSpendPieChart } from "./BudgetSpendPieChart";
 
@@ -42,14 +42,21 @@ export function BudgetDashboard({
     setEdit(next);
   }, [budgets, categoryKeys]);
 
+  const surplusAlloc = useMemo(
+    () => new Set<string>(SURPLUS_ALLOCATION_TX_CATEGORIES),
+    []
+  );
+
   const spentByName = useMemo(() => {
     const m = new Map<string, number>();
     if (!data?.buckets) return m;
     for (const b of data.buckets) {
+      // Surplus allocation buckets are not consumption outflow; omit from spent mix.
+      if (surplusAlloc.has(b.name)) continue;
       m.set(b.name, spentForBucket(b.name, b.total));
     }
     return m;
-  }, [data]);
+  }, [data, surplusAlloc]);
 
   const onSave = async () => {
     setSaveErr(null);

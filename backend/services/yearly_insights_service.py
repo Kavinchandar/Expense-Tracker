@@ -7,6 +7,9 @@ from sqlalchemy.orm import Session
 from data.repositories.stored_transaction_repository import StoredTransactionRepository
 from services.exceptions import ValidationError
 
+# Gross debits in these categories for the year (for a savings-inclusive net-worth view).
+_FD_INVESTMENT_CATEGORIES_FOR_YEAR: tuple[str, ...] = ("FDS", "INVESTMENTS")
+
 
 def _validate_year(year: int) -> None:
     if year < 1970 or year > 2100:
@@ -27,6 +30,9 @@ def get_yearly_insights(session: Session, year: int) -> dict[str, float | int | 
     net_flow = total_inflow - total_outflow
     end = date(year, 12, 31)
     total_worth = repo.last_balance_on_or_before(end)
+    fd_investment_debits_year = repo.yearly_abs_debit_sum_by_categories(
+        year, _FD_INVESTMENT_CATEGORIES_FOR_YEAR
+    )
     return {
         "year": year,
         "total_inflow": total_inflow,
@@ -36,4 +42,5 @@ def get_yearly_insights(session: Session, year: int) -> dict[str, float | int | 
         "inflow_pct_of_gross": inflow_pct,
         "outflow_pct_of_gross": outflow_pct,
         "total_worth": total_worth,
+        "fd_investment_debits_year": fd_investment_debits_year,
     }

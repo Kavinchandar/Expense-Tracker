@@ -19,6 +19,7 @@ export const SPENDING_CHART_ORDER = [
   "SHOPPING",
   "SUBSCRIPTIONS",
   "ACTIVITIES",
+  "SURPLUS",
   "UNCATEGORIZED",
 ] as const;
 

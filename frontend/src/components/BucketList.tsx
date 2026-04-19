@@ -191,8 +191,10 @@ export function BucketList({
         <p className="month-total">
           {allowOnly ? (
             <>
-              FD &amp; investment total:{" "}
-              <strong>{formatInr(surplusSectionNet ?? 0)}</strong>
+              Surplus allocation (FD · investments · Surplus), not consumption:{" "}
+              <strong>
+                {formatInr(Math.abs(surplusSectionNet ?? 0))}
+              </strong>
             </>
           ) : (
             <>
@@ -221,7 +223,12 @@ export function BucketList({
             <dd>{formatInr(data.total_inflow)}</dd>
           </div>
           <div>
-            <dt>Total outflow</dt>
+            <dt>
+              {allowOnly ? "Consumption outflow" : "Total outflow"}
+              {allowOnly ? (
+                <span className="muted"> (excl. FD, investments, Surplus)</span>
+              ) : null}
+            </dt>
             <dd>{formatInr(data.total_outflow)}</dd>
           </div>
           <div>
@@ -277,8 +284,9 @@ export function BucketList({
         <p className="tx-list-hint muted">
           {allowOnly ? (
             <>
-              FD and investment debits are excluded from consumption outflow and
-              count toward surplus. Assign categories on{" "}
+              FD and investment debits are excluded from consumption outflow only.
+              Surplus-tagged debits add their amount to inflow and are excluded from
+              consumption outflow. Assign categories on{" "}
               <strong>Overview</strong> if a line is missing here.
             </>
           ) : (

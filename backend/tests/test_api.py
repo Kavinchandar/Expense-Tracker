@@ -270,6 +270,7 @@ def test_yearly_insights_in_out_pct_and_worth(client):
                 category="INFLOW",
             )
         )
+        fp3 = line_fingerprint_digest_from_stored(date(2024, 3, 7), -5_000.0, "fd")
         session.add(
             StoredTransaction(
                 upload_id=upload.id,
@@ -280,6 +281,18 @@ def test_yearly_insights_in_out_pct_and_worth(client):
                 amount=-3_000.0,
                 balance_after=7_000.0,
                 category="HOUSING_AND_RENT",
+            )
+        )
+        session.add(
+            StoredTransaction(
+                upload_id=upload.id,
+                line_fingerprint=fp3,
+                posted_date=date(2024, 3, 7),
+                description="fd",
+                merchant_key=normalize_description("fd"),
+                amount=-5_000.0,
+                balance_after=2_000.0,
+                category="FDS",
             )
         )
         session.commit()
@@ -296,7 +309,8 @@ def test_yearly_insights_in_out_pct_and_worth(client):
     assert d["net_flow"] == pytest.approx(7_000.0)
     assert d["inflow_pct_of_gross"] == pytest.approx(76.9, abs=0.05)
     assert d["outflow_pct_of_gross"] == pytest.approx(23.1, abs=0.05)
-    assert d["total_worth"] == pytest.approx(7_000.0)
+    assert d["total_worth"] == pytest.approx(2_000.0)
+    assert d["fd_investment_debits_year"] == pytest.approx(5_000.0)
 
     r2 = client.get("/api/insights/yearly", params={"year": 1969})
     assert r2.status_code == 400

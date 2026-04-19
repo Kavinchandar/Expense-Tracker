@@ -99,6 +99,12 @@ export function YearlyInsightsPanel({ anchorYear }: Props) {
 
   const bofaInr = BOFA_USD_BALANCE * BOFA_USD_TO_INR;
 
+  /** Total surplus for the year + BOFA (INR). */
+  const totalNetWorthCombo = useMemo(
+    () => totalSurplusYear + bofaInr,
+    [totalSurplusYear, bofaInr]
+  );
+
   const usdFormatted = useMemo(
     () =>
       new Intl.NumberFormat("en-US", {
@@ -127,8 +133,8 @@ export function YearlyInsightsPanel({ anchorYear }: Props) {
     <div className="yearly-insights">
       <h3 className="yearly-insights-title">Year at a glance</h3>
       <p className="muted yearly-insights-lede">
-        Calendar-year totals, estimated balance from statements, surplus saved
-        across the year, and a month-by-month view of money in, out, and surplus.
+        BOFA, Indian bank balance, combined net worth (surplus + BOFA), and
+        average savings—plus cash movement and charts below.
       </p>
 
       <label className="yearly-year-pick">
@@ -152,71 +158,40 @@ export function YearlyInsightsPanel({ anchorYear }: Props) {
         <p className="muted">Loading yearly summary…</p>
       ) : data && monthlySeries ? (
         <>
-          <section className="yearly-bofa" aria-label="BOFA USD balance">
-            <h4 className="yearly-bofa-title">Bank of America (USD)</h4>
-            <p className="muted yearly-bofa-lede">
-              Tracked outside Indian imports. Update balance in{" "}
-              <code className="insights-code">bofaUsd.ts</code>; conversion uses{" "}
-              <code className="insights-code">BOFA_USD_TO_INR</code> ({BOFA_USD_TO_INR}{" "}
-              INR per USD).
-            </p>
-            <div className="yearly-bofa-row">
-              <div>
-                <p className="yearly-bofa-k">USD balance</p>
-                <p className="yearly-bofa-usd">{usdFormatted}</p>
-              </div>
-              <div>
-                <p className="yearly-bofa-k">Value in INR</p>
-                <p className="yearly-bofa-inr">₹{formatInr(bofaInr)}</p>
-                <p className="muted yearly-bofa-meta">
-                  {BOFA_USD_BALANCE.toLocaleString("en-US")} USD × {BOFA_USD_TO_INR}{" "}
-                  INR/USD
-                </p>
-              </div>
-            </div>
-          </section>
-
-          <div className="yearly-stats-row">
-            <div className="yearly-stat-card yearly-stat-card--worth">
-              <p className="yearly-stat-label">Total net worth (est.)</p>
-              <p className="yearly-stat-value">
-                ₹
-                {formatInr(
-                  (data.total_worth ?? 0) + bofaInr
-                )}
-              </p>
-              <p className="muted yearly-stat-foot yearly-nw-foot">
-                {data.total_worth != null ? (
-                  <>
-                    <span className="yearly-nw-part">
-                      ₹{formatInr(data.total_worth)} imports
-                    </span>
-                    <span className="yearly-nw-plus"> + </span>
-                    <span className="yearly-nw-part">
-                      ₹{formatInr(bofaInr)} BOFA
-                    </span>
-                    <span className="yearly-nw-eq"> = </span>
-                    <span className="yearly-nw-sum">
-                      ₹{formatInr((data.total_worth ?? 0) + bofaInr)}
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    No Indian running balance on file; total is BOFA only: ₹
-                    {formatInr(bofaInr)}.
-                  </>
-                )}
-              </p>
-            </div>
-            <div className="yearly-stat-card">
-              <p className="yearly-stat-label">Total surplus ({year})</p>
-              <p className="yearly-stat-value">{formatInr(totalSurplusYear)}</p>
+          <div className="yearly-stats-row yearly-stats-row--four">
+            <div className="yearly-stat-card yearly-stat-card--bofa">
+              <p className="yearly-stat-label">BOFA</p>
+              <p className="yearly-stat-value">₹{formatInr(bofaInr)}</p>
+              <p className="yearly-stat-sub muted">{usdFormatted}</p>
               <p className="muted yearly-stat-foot">
-                Sum of monthly surpluses (inflow − outflow, floored at zero).
+                Update USD balance in{" "}
+                <code className="insights-code">bofaUsd.ts</code> ·{" "}
+                {BOFA_USD_TO_INR} INR/USD
               </p>
             </div>
             <div className="yearly-stat-card">
-              <p className="yearly-stat-label">Avg saving / month</p>
+              <p className="yearly-stat-label">Bank balance</p>
+              <p className="yearly-stat-value">
+                {data.total_worth != null
+                  ? `₹${formatInr(data.total_worth)}`
+                  : "—"}
+              </p>
+              <p className="muted yearly-stat-foot">
+                {data.total_worth != null
+                  ? "Ready to spend — latest running balance from Indian imports."
+                  : "Ready to spend — no import balance on file for year-end yet."}
+              </p>
+            </div>
+            <div className="yearly-stat-card yearly-stat-card--worth">
+              <p className="yearly-stat-label">Total net worth</p>
+              <p className="yearly-stat-value">₹{formatInr(totalNetWorthCombo)}</p>
+              <p className="muted yearly-stat-foot">
+                Total surplus ({year}) ₹{formatInr(totalSurplusYear)} + BOFA ₹
+                {formatInr(bofaInr)}
+              </p>
+            </div>
+            <div className="yearly-stat-card">
+              <p className="yearly-stat-label">Avg savings / month</p>
               <p className="yearly-stat-value">{formatInr(avgMonthlySaving)}</p>
               <p className="muted yearly-stat-foot">{avgSavingFootnote}</p>
             </div>

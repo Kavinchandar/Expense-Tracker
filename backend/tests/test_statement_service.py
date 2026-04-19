@@ -89,6 +89,37 @@ def test_monthly_transactions_after_upload(memory_engine):
         session.close()
 
 
+def test_monthly_surplus_debit_adds_to_inflow_not_outflow(memory_engine):
+    """SURPLUS debits add magnitude to total_inflow and skip consumption outflow."""
+    Session = sessionmaker(bind=memory_engine)
+    session = Session()
+    try:
+        upload = StatementUpload(filename="x.pdf")
+        session.add(upload)
+        session.flush()
+        session.add(
+            StoredTransaction(
+                upload_id=upload.id,
+                line_fingerprint=line_fingerprint_digest_from_stored(
+                    date(2024, 6, 10), -500.0, "to surplus"
+                ),
+                posted_date=date(2024, 6, 10),
+                description="to surplus",
+                merchant_key=normalize_description("to surplus"),
+                amount=-500.0,
+                category="SURPLUS",
+            )
+        )
+        session.commit()
+
+        svc = StatementService(session)
+        result = svc.monthly_transactions(2024, 6)
+        assert result.total_inflow == pytest.approx(500.0)
+        assert result.total_outflow == pytest.approx(0.0)
+    finally:
+        session.close()
+
+
 def test_monthly_balances_from_running_balance(memory_engine):
     Session = sessionmaker(bind=memory_engine)
     session = Session()

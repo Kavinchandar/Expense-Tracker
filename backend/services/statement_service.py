@@ -10,6 +10,7 @@ from categories import (
     DELETED_BUCKET_KEY,
     EXPENSE_CATEGORIES,
     SURPLUS_ALLOCATION_EXPENSE_KEYS,
+    SURPLUS_DEBIT_COUNTS_TOWARD_INFLOWS_KEYS,
 )
 from config import get_settings
 from data.repositories.statement_upload_repository import StatementUploadRepository
@@ -47,7 +48,11 @@ class UploadStatementResult:
 
 def _period_cashflow_and_balances(rows: list[StoredTransaction]) -> tuple[float, float, float | None, float | None]:
     """Sum credits/debits; opening/closing from running balance when ICICI stored it."""
+    surplus_inflow_debits = set(SURPLUS_DEBIT_COUNTS_TOWARD_INFLOWS_KEYS)
     total_inflow = sum(t.amount for t in rows if t.amount > 0)
+    total_inflow += sum(
+        -t.amount for t in rows if t.amount < 0 and t.category in surplus_inflow_debits
+    )
     surplus_alloc = set(SURPLUS_ALLOCATION_EXPENSE_KEYS)
     total_outflow = sum(
         -t.amount

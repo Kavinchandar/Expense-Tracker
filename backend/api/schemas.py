@@ -66,6 +66,7 @@ class YearlyInsightsResponse(BaseModel):
     inflow_pct_of_gross: float
     outflow_pct_of_gross: float
     total_worth: Optional[float] = None
+    fd_investment_debits_year: float = 0.0
 
 
 class SurplusBudgetsResponse(BaseModel):
