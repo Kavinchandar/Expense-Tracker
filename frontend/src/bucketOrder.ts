@@ -23,4 +23,9 @@ export const SPENDING_CHART_ORDER = [
   "UNCATEGORIZED",
 ] as const;
 
+/** Overview budget chart: FD and investment buckets are only on the Surplus tab. */
+export const OVERVIEW_SPENDING_CHART_ORDER = SPENDING_CHART_ORDER.filter(
+  (k) => k !== "FDS" && k !== "INVESTMENTS"
+);
+
 export const INFLOW_KEY = "INFLOW";

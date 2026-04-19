@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import type { TransactionsPayload } from "../api";
-import { saveBudgets, SURPLUS_ALLOCATION_TX_CATEGORIES } from "../api";
+import {
+  OVERVIEW_HIDDEN_TX_CATEGORIES,
+  saveBudgets,
+  SURPLUS_ALLOCATION_TX_CATEGORIES,
+} from "../api";
+import { OVERVIEW_SPENDING_CHART_ORDER } from "../bucketOrder";
 import { INFLOW_KEY } from "../bucketOrder";
 import { BudgetSpendPieChart } from "./BudgetSpendPieChart";
 
@@ -70,6 +75,10 @@ export function BudgetDashboard({
       }
       payload[k] = n;
     }
+    /* API replaces all bucket keys; keep FD/Investments targets edited only on Surplus flows. */
+    for (const k of OVERVIEW_HIDDEN_TX_CATEGORIES) {
+      payload[k] = budgets[k] ?? 0;
+    }
     setSaving(true);
     try {
       const res = await saveBudgets(year, month, payload);
@@ -99,6 +108,7 @@ export function BudgetDashboard({
       <BudgetSpendPieChart
         year={year}
         month={month}
+        spendingChartKeys={OVERVIEW_SPENDING_CHART_ORDER}
         spentByName={spentByName}
         budgets={budgets}
         labels={labels}

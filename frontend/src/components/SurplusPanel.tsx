@@ -114,7 +114,8 @@ export function SurplusPanel({
       <h3 className="surplus-panel-title">Surplus allocation</h3>
       <p className="muted surplus-panel-lede">
         Split the selected month&apos;s cash surplus across your global targets
-        (pie). FD, investment, and Surplus-tagged transactions are listed below.
+        (pie). FD, investment, and Surplus-tagged transactions are listed below
+        (assign those categories here, not on Overview).
         FD and investment debits are excluded from consumption outflow; Surplus-tagged
         debits add to inflow and are excluded from consumption outflow.
         Month-by-month cash in, out, and surplus is on the <strong>Year</strong> tab.

@@ -63,6 +63,15 @@ export default function App() {
     return { year: p.year, monthNum: p.month };
   }, [month]);
 
+  /** FD and Investments are listed and budgeted from the Surplus tab only. */
+  const overviewCategories = useMemo(
+    () =>
+      categories.filter(
+        (c) => c !== "FDS" && c !== "INVESTMENTS"
+      ),
+    [categories]
+  );
+
   const loadTransactions = useCallback(async () => {
     setTxLoading(true);
     setTxError(null);
@@ -368,7 +377,7 @@ export default function App() {
                 loading={txLoading}
                 budgets={budgets}
                 labels={categoryLabels}
-                categoryKeys={categories}
+                categoryKeys={overviewCategories}
                 onBudgetsSaved={setBudgets}
               />
             </section>
@@ -378,7 +387,7 @@ export default function App() {
                 data={tx}
                 loading={txLoading}
                 error={txError}
-                categories={categories}
+                categories={overviewCategories}
                 categoryLabels={categoryLabels}
                 assignCategory={assignCategory}
                 assignDetail={assignDetail}

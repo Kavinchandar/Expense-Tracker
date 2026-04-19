@@ -5,6 +5,8 @@ import { formatInr } from "../formatInr";
 type Props = {
   year: number;
   month: number;
+  /** Defaults to full `SPENDING_CHART_ORDER`; Overview omits FD/Investments. */
+  spendingChartKeys?: readonly string[];
   spentByName: Map<string, number>;
   budgets: Record<string, number>;
   labels: Record<string, string>;
@@ -96,6 +98,7 @@ type Segment = {
 export function BudgetSpendPieChart({
   year,
   month,
+  spendingChartKeys = SPENDING_CHART_ORDER,
   spentByName,
   budgets,
   labels,
@@ -105,7 +108,7 @@ export function BudgetSpendPieChart({
   const cashSurplus = Math.max(0, totalInflow - totalOutflow);
 
   const spendingChartRows = useMemo(() => {
-    return SPENDING_CHART_ORDER.map((key) => {
+    return spendingChartKeys.map((key) => {
       const spent = spentByName.get(key) ?? 0;
       const budget = budgets[key] ?? 0;
       return {
@@ -115,7 +118,7 @@ export function BudgetSpendPieChart({
         spent,
       };
     }).filter((row) => row.spent > 0);
-  }, [spentByName, budgets, labels]);
+  }, [spentByName, budgets, labels, spendingChartKeys]);
 
   const inflowRow = useMemo(
     () => ({
@@ -127,7 +130,7 @@ export function BudgetSpendPieChart({
   );
 
   const { segments, mode, unbudgetedSpent } = useMemo(() => {
-    const rows = SPENDING_CHART_ORDER.map((key) => ({
+    const rows = spendingChartKeys.map((key) => ({
       key,
       label: labels[key] ?? key,
       budget: Math.max(0, budgets[key] ?? 0),
@@ -259,7 +262,7 @@ export function BudgetSpendPieChart({
       totalSpentBudgeted: sumSpent,
       unbudgetedSpent: 0,
     };
-  }, [spentByName, budgets, labels, cashSurplus]);
+  }, [spentByName, budgets, labels, cashSurplus, spendingChartKeys]);
 
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
   const hoveredSeg = useMemo(

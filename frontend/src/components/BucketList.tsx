@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { TransactionsPayload } from "../api";
+import { OVERVIEW_HIDDEN_TX_CATEGORIES, type TransactionsPayload } from "../api";
 import { DELETED_BUCKET_KEY } from "../bucketOrder";
 import { formatInr } from "../formatInr";
 
@@ -61,13 +61,21 @@ export function BucketList({
     [onlyCategories]
   );
 
+  const overviewHidden = useMemo(
+    () => new Set<string>(OVERVIEW_HIDDEN_TX_CATEGORIES),
+    []
+  );
+
   const activeBuckets = useMemo(() => {
     let list = (data?.buckets ?? []).filter((b) => b.name !== DELETED_BUCKET_KEY);
+    if (!allowOnly) {
+      list = list.filter((b) => !overviewHidden.has(b.name));
+    }
     if (allowOnly) {
       list = list.filter((b) => allowOnly.has(b.name));
     }
     return list;
-  }, [data?.buckets, allowOnly]);
+  }, [data?.buckets, allowOnly, overviewHidden]);
 
   const deletedBucket = useMemo(
     () => (data?.buckets ?? []).find((b) => b.name === DELETED_BUCKET_KEY),
@@ -109,6 +117,9 @@ export function BucketList({
       }
     }
     let arr = [...set];
+    if (!allowOnly) {
+      arr = arr.filter((c) => !overviewHidden.has(c));
+    }
     if (allowOnly) {
       arr = arr.filter((c) => allowOnly.has(c));
     }
@@ -118,7 +129,7 @@ export function BucketList({
       )
     );
     return arr;
-  }, [data, categories, categoryLabels, allowOnly]);
+  }, [data, categories, categoryLabels, allowOnly, overviewHidden]);
 
   const flatRows = useMemo(() => {
     if (!filterCategory) return allRowsSorted;
@@ -286,8 +297,8 @@ export function BucketList({
             <>
               FD and investment debits are excluded from consumption outflow only.
               Surplus-tagged debits add their amount to inflow and are excluded from
-              consumption outflow. Assign categories on{" "}
-              <strong>Overview</strong> if a line is missing here.
+              consumption outflow. Assign FD or Investments on this tab if a line is
+              missing here.
             </>
           ) : (
             <>
@@ -304,7 +315,7 @@ export function BucketList({
       {showMainEmpty ? (
         <p className="muted">
           {allowOnly
-            ? "No FD or investment transactions for this month. Categorize debits as FDs or Investments on Overview, or pick another month."
+            ? "No FD or investment transactions for this month. Categorize debits as FDs or Investments here, or pick another month."
             : "No transactions for this month. Upload a PDF that includes dates in this month, or pick another month."}
         </p>
       ) : null}

@@ -157,6 +157,9 @@ export const SURPLUS_ALLOCATION_TX_CATEGORIES = [
   "SURPLUS",
 ] as const;
 
+/** Transaction buckets hidden from Overview; manage under Surplus. */
+export const OVERVIEW_HIDDEN_TX_CATEGORIES = ["FDS", "INVESTMENTS"] as const;
+
 /** Envelope order for surplus allocation (matches backend `SURPLUS_CATEGORIES`). */
 export const SURPLUS_KEYS = [
   "TERM_INSURANCE",
