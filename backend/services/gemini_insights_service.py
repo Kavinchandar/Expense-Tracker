@@ -57,6 +57,9 @@ def _format_month_payload(result: MonthlyTransactionsResult) -> str:
     lines.append("Transactions (newest first; amounts in account currency):")
     for t in flat:
         desc = (t.get("name") or "")[:_DESC_MAX]
+        extra = (t.get("detail") or "").strip()
+        if extra:
+            desc = f"{desc} [detail: {extra[:80]}]"[: _DESC_MAX + 100]
         cat = BUCKET_LABELS.get(t.get("primary_category"), t.get("primary_category"))
         lines.append(
             f"  {t['date']} | {t['amount']:.2f} | {cat} | {desc}"

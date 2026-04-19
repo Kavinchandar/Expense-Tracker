@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from api.dependencies import get_db
-from api.schemas import CategoryBody, TransactionsResponse
+from api.schemas import CategoryBody, DetailBody, TransactionsResponse
 from services.statement_service import StatementService
 
 router = APIRouter(tags=["transactions"])
@@ -39,6 +39,17 @@ def patch_transaction_category(
 ):
     svc = StatementService(db)
     svc.set_transaction_category(transaction_id, body.category)
+    return {"ok": True}
+
+
+@router.patch("/transactions/{transaction_id}/detail")
+def patch_transaction_detail(
+    transaction_id: str,
+    body: DetailBody,
+    db: Session = Depends(get_db),
+):
+    svc = StatementService(db)
+    svc.set_transaction_detail(transaction_id, body.detail)
     return {"ok": True}
 
 

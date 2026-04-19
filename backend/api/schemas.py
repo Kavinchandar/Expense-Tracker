@@ -29,6 +29,10 @@ class CategoryBody(BaseModel):
     category: str = Field(..., min_length=1, max_length=128)
 
 
+class DetailBody(BaseModel):
+    detail: str = Field(default="", max_length=2048)
+
+
 class CategoriesResponse(BaseModel):
     categories: List[str]
     labels: Dict[str, str]

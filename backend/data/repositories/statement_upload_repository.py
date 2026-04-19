@@ -60,6 +60,7 @@ class StatementUploadRepository:
             batch_fp.add(fp)
             bal = row.get("balance_after")
             desc = row["description"][:1024]
+            detail = (row.get("detail") or "")[:2048]
             merchant_key = normalize_description(desc)
             category = row.get("category", "UNCATEGORIZED")
             self._session.add(
@@ -68,6 +69,7 @@ class StatementUploadRepository:
                     line_fingerprint=fp,
                     posted_date=row["date"],
                     description=desc,
+                    detail=detail or None,
                     merchant_key=merchant_key,
                     amount=row["amount"],
                     balance_after=bal if bal is not None else None,

@@ -28,6 +28,8 @@ class StoredTransaction(Base):
     line_fingerprint: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
     posted_date: Mapped[date_type] = mapped_column(Date, index=True)
     description: Mapped[str] = mapped_column(String(1024))
+    # Optional notes / full bank narrative; not used for dedupe (line_fingerprint).
+    detail: Mapped[Optional[str]] = mapped_column(String(2048), nullable=True)
     merchant_key: Mapped[str] = mapped_column(String(512), index=True, nullable=False)
     amount: Mapped[float] = mapped_column(Float)
     balance_after: Mapped[Optional[float]] = mapped_column(Float, nullable=True)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import io
 import re
 from datetime import date
@@ -11,6 +12,7 @@ import pdfplumber
 from dateutil import parser as du_parser
 
 from services.icici_statement_parser import extract_icici_rows_from_pdf_text
+from services.statement_parse_utils import finalize_parsed_rows
 
 # Lines that are usually headers / footers, not transactions
 _SKIP_LINE = re.compile(
@@ -98,8 +100,17 @@ def extract_transaction_lines_from_pdf(file_bytes: bytes) -> list[dict[str, Any]
             if key in seen:
                 continue
             seen.add(key)
-            rows.append({"date": d, "description": desc, "amount": amt})
+            line_key = hashlib.sha256(
+                f"{d.isoformat()}|{amt:.2f}|{desc}".encode("utf-8")
+            ).hexdigest()
+            rows.append(
+                {
+                    "date": d,
+                    "description": desc,
+                    "amount": amt,
+                    "transaction_id": f"line:{line_key}",
+                }
+            )
             break
 
-    rows.sort(key=lambda r: (r["date"], r["description"]))
-    return rows
+    return finalize_parsed_rows(rows)

@@ -68,3 +68,25 @@ export function mergeCategoryChange(
     month_total,
   };
 }
+
+export function mergeDetailChange(
+  tx: TransactionsPayload,
+  transactionId: string,
+  detail: string
+): TransactionsPayload {
+  const flat = tx.buckets.flatMap((b) => b.transactions);
+  const rows = flat.map((t) =>
+    t.transaction_id === transactionId ? { ...t, detail } : t
+  );
+  const { buckets } = groupIntoBuckets(rows);
+  let month_total = 0;
+  for (const b of buckets) {
+    if (b.name === DELETED_BUCKET_KEY) continue;
+    month_total += b.total;
+  }
+  return {
+    ...tx,
+    buckets,
+    month_total,
+  };
+}

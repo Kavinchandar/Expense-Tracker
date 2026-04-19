@@ -74,6 +74,7 @@ def _stored_to_bucket_row(t: StoredTransaction, *, is_deleted: bool = False) -> 
         "transaction_id": ref,
         "date": t.posted_date.isoformat(),
         "name": t.description,
+        "detail": t.detail or "",
         "amount": t.amount,
         "merchant_name": None,
         "primary_category": DELETED_BUCKET_KEY if is_deleted else t.category,
@@ -211,6 +212,16 @@ class StatementService:
             raise ValidationError("Restore a deleted transaction before changing its category.")
 
         row.category = category
+        self._session.commit()
+
+    def set_transaction_detail(self, transaction_id: str, detail: str) -> None:
+        row = self._stored.get_by_ref(transaction_id)
+        if row is None:
+            raise NotFoundError("Transaction not found.")
+        if row.deleted_at is not None:
+            raise ValidationError("Restore a deleted transaction before editing notes.")
+
+        row.detail = (detail or "")[:2048]
         self._session.commit()
 
     def soft_delete_transaction(self, transaction_id: str) -> None:

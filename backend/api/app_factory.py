@@ -117,6 +117,20 @@ def _ensure_stored_transaction_merchant_key(engine) -> None:
         )
 
 
+def _ensure_stored_transaction_detail_column(engine) -> None:
+    """Optional notes / raw bank narrative; excluded from line_fingerprint."""
+    if not str(engine.url).startswith("sqlite"):
+        return
+    insp = inspect(engine)
+    if not insp.has_table("stored_transactions"):
+        return
+    cols = {c["name"] for c in insp.get_columns("stored_transactions")}
+    if "detail" in cols:
+        return
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE stored_transactions ADD COLUMN detail VARCHAR(2048)"))
+
+
 def _ensure_stored_transaction_soft_delete(engine) -> None:
     """Add deleted_at; replace global unique(line_fingerprint) with partial unique (active rows only)."""
     if not str(engine.url).startswith("sqlite"):
@@ -157,6 +171,7 @@ def create_app() -> FastAPI:
         _ensure_stored_transaction_balance_column(engine)
         _ensure_stored_transaction_line_fingerprint(engine)
         _ensure_stored_transaction_merchant_key(engine)
+        _ensure_stored_transaction_detail_column(engine)
         _ensure_stored_transaction_soft_delete(engine)
         yield
 

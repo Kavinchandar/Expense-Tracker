@@ -6,6 +6,9 @@ import hashlib
 from datetime import date
 from typing import Any
 
+# Parsed rows should set ``transaction_id`` to a bank-stable line key (ICICI anchor
+# tuple, or a hash of the raw extracted line). The line fingerprint is **only** that
+# id’s SHA-256 hex so description display/simplification never changes dedupe.
 
 def normalize_description(text: str) -> str:
     return " ".join(text.split()).lower()[:512]
@@ -32,7 +35,14 @@ def _digest_from_fingerprint(fp: tuple[str, float, str]) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
+def _digest_from_transaction_id(transaction_id: str) -> str:
+    return hashlib.sha256(transaction_id.strip().encode("utf-8")).hexdigest()
+
+
 def line_fingerprint_digest_from_parsed(row: dict[str, Any]) -> str:
+    tid = row.get("transaction_id")
+    if isinstance(tid, str) and tid.strip():
+        return _digest_from_transaction_id(tid)
     return _digest_from_fingerprint(fingerprint_from_parsed(row))
 
 
