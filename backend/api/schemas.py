@@ -48,6 +48,11 @@ class InsightsResponse(BaseModel):
     insights: str
 
 
+class UsdInrResponse(BaseModel):
+    usd_to_inr: float
+    as_of_date: str = ""
+
+
 class YearlyInsightsResponse(BaseModel):
     year: int
     total_inflow: float

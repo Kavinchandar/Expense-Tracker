@@ -75,6 +75,18 @@ export async function getYearlyInsights(
   return r.json() as Promise<YearlyInsightsPayload>;
 }
 
+export type UsdInrPayload = {
+  usd_to_inr: number;
+  as_of_date: string;
+};
+
+/** Latest USD→INR (Frankfurter via backend; for display only). */
+export async function getUsdInr(): Promise<UsdInrPayload> {
+  const r = await fetch(`${API}/fx/usd-inr`);
+  if (!r.ok) throw new Error(await readHttpError(r));
+  return r.json() as Promise<UsdInrPayload>;
+}
+
 export async function getTransactions(
   year: number,
   month: number

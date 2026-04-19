@@ -9,7 +9,7 @@ from sqlalchemy import inspect, text
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.error_handlers import register_exception_handlers
-from api.routers import budgets, categories, health, insights, statements, surplus, transactions
+from api.routers import budgets, categories, fx, health, insights, statements, surplus, transactions
 
 
 def _ensure_stored_transaction_balance_column(engine) -> None:
@@ -171,6 +171,7 @@ def create_app() -> FastAPI:
     register_exception_handlers(app)
 
     app.include_router(health.router, prefix="/api")
+    app.include_router(fx.router, prefix="/api")
     app.include_router(categories.router, prefix="/api")
     app.include_router(budgets.router, prefix="/api")
     app.include_router(surplus.router, prefix="/api")
