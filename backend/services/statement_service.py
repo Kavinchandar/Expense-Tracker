@@ -1,4 +1,4 @@
-"""Business logic for PDF statement uploads and stored transactions."""
+"""Business logic for statement uploads and stored transactions."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from config import get_settings
 from data.repositories.statement_upload_repository import StatementUploadRepository
 from data.repositories.stored_transaction_repository import StoredTransactionRepository
 from data.models.statement import StoredTransaction
-from services import pdf_statement
+from services import excel_statement, pdf_statement
 from services.buckets import group_by_bucket, month_date_range
 from services.exceptions import NotFoundError, UnprocessableEntityError, ValidationError
 from services.auto_categorize import classify
@@ -42,8 +42,9 @@ class MonthlyTransactionsResult:
 class UploadStatementResult:
     upload_id: int
     parsed_count: int  # rows inserted
-    skipped_duplicates: int  # duplicate lines within the same PDF
+    skipped_duplicates: int  # duplicate lines within the same uploaded statement
     replaced_count: int  # legacy; always 0 (incremental import; no date-range wipe)
+    detected_format: str  # one of: pdf, xls, xlsx
 
 
 def _period_cashflow_and_balances(rows: list[StoredTransaction]) -> tuple[float, float, float | None, float | None]:
@@ -97,20 +98,42 @@ class StatementService:
 
     def upload_pdf(self, filename: str, file_bytes: bytes) -> UploadStatementResult:
         name = (filename or "").strip()
-        if not name.lower().endswith(".pdf"):
-            raise ValidationError("Upload a PDF bank statement.")
+        lower_name = name.lower()
+        if not (
+            lower_name.endswith(".pdf")
+            or lower_name.endswith(".xls")
+            or lower_name.endswith(".xlsx")
+        ):
+            raise ValidationError("Upload a bank statement as PDF, XLS, or XLSX.")
 
         if len(file_bytes) > MAX_STATEMENT_UPLOAD_BYTES:
             raise ValidationError("File too large (max 10 MB).")
 
+        detected_format = (
+            "pdf"
+            if lower_name.endswith(".pdf")
+            else "xlsx" if lower_name.endswith(".xlsx") else "xls"
+        )
+
         try:
-            parsed = pdf_statement.extract_transaction_lines_from_pdf(file_bytes)
+            if lower_name.endswith(".pdf"):
+                parsed = pdf_statement.extract_transaction_lines_from_pdf(file_bytes)
+            elif lower_name.endswith(".xlsx"):
+                parsed = excel_statement.extract_transaction_lines_from_xlsx(file_bytes)
+            else:
+                parsed = excel_statement.extract_transaction_lines_from_xls(file_bytes)
         except Exception as e:
-            raise UnprocessableEntityError(f"Could not read or parse PDF: {e}") from e
+            raise UnprocessableEntityError(
+                f"Could not read or parse statement file: {e}"
+            ) from e
 
         if not parsed:
             return UploadStatementResult(
-                upload_id=0, parsed_count=0, skipped_duplicates=0, replaced_count=0
+                upload_id=0,
+                parsed_count=0,
+                skipped_duplicates=0,
+                replaced_count=0,
+                detected_format=detected_format,
             )
 
         intra_seen: set[str] = set()
@@ -148,6 +171,7 @@ class StatementService:
                 parsed_count=0,
                 skipped_duplicates=intra_dup + global_pre_skip,
                 replaced_count=0,
+                detected_format=detected_format,
             )
 
         upload_id, count, global_skip = self._uploads.create_upload_with_parsed_rows(
@@ -161,12 +185,14 @@ class StatementService:
                 parsed_count=0,
                 skipped_duplicates=skipped,
                 replaced_count=0,
+                detected_format=detected_format,
             )
         return UploadStatementResult(
             upload_id=upload_id,
             parsed_count=count,
             skipped_duplicates=skipped,
             replaced_count=0,
+            detected_format=detected_format,
         )
 
     def monthly_transactions(self, year: int, month: int) -> MonthlyTransactionsResult:

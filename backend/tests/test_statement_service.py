@@ -172,8 +172,56 @@ def test_upload_pdf_rejects_non_pdf(memory_engine):
     session = Session()
     try:
         svc = StatementService(session)
-        with pytest.raises(ValidationError, match="PDF"):
+        with pytest.raises(ValidationError, match="PDF, XLS, or XLSX"):
             svc.upload_pdf("notes.txt", b"%PDF-fake")
+    finally:
+        session.close()
+
+
+def test_upload_xlsx_uses_excel_parser(monkeypatch, memory_engine):
+    Session = sessionmaker(bind=memory_engine)
+    session = Session()
+    try:
+        import services.statement_service as ss
+
+        def fake_extract_xlsx(_b: bytes):
+            return [
+                {"date": date(2024, 6, 15), "description": "coffee", "amount": -5.0},
+            ]
+
+        monkeypatch.setattr(
+            ss.excel_statement, "extract_transaction_lines_from_xlsx", fake_extract_xlsx
+        )
+
+        svc = StatementService(session)
+        result = svc.upload_pdf("statement.xlsx", b"fake")
+        assert result.parsed_count == 1
+        assert result.skipped_duplicates == 0
+        assert result.detected_format == "xlsx"
+    finally:
+        session.close()
+
+
+def test_upload_xls_uses_excel_parser(monkeypatch, memory_engine):
+    Session = sessionmaker(bind=memory_engine)
+    session = Session()
+    try:
+        import services.statement_service as ss
+
+        def fake_extract_xls(_b: bytes):
+            return [
+                {"date": date(2024, 6, 16), "description": "metro", "amount": -20.0},
+            ]
+
+        monkeypatch.setattr(
+            ss.excel_statement, "extract_transaction_lines_from_xls", fake_extract_xls
+        )
+
+        svc = StatementService(session)
+        result = svc.upload_pdf("statement.xls", b"fake")
+        assert result.parsed_count == 1
+        assert result.skipped_duplicates == 0
+        assert result.detected_format == "xls"
     finally:
         session.close()
 
@@ -198,10 +246,12 @@ def test_upload_skips_lines_already_stored_incremental_import(monkeypatch, memor
         assert r1.parsed_count == 1
         assert r1.skipped_duplicates == 0
         assert r1.replaced_count == 0
+        assert r1.detected_format == "pdf"
 
         r2 = svc.upload_pdf("b.pdf", b"%PDF")
         assert r2.parsed_count == 0
         assert r2.skipped_duplicates == 1
         assert r2.replaced_count == 0
+        assert r2.detected_format == "pdf"
     finally:
         session.close()

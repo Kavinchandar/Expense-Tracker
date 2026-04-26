@@ -243,6 +243,7 @@ export async function uploadStatement(file: File): Promise<{
   upload_id: number;
   skipped_duplicates: number;
   replaced_count: number;
+  detected_format: "pdf" | "xls" | "xlsx" | "unknown";
 }> {
   const body = new FormData();
   body.append("file", file);
@@ -261,14 +262,27 @@ function coerceUploadStatementResponse(raw: unknown): {
   upload_id: number;
   skipped_duplicates: number;
   replaced_count: number;
+  detected_format: "pdf" | "xls" | "xlsx" | "unknown";
 } {
+  const normalizeFormat = (v: unknown): "pdf" | "xls" | "xlsx" | "unknown" => {
+    if (typeof v !== "string") return "unknown";
+    const s = v.trim().toLowerCase();
+    if (s === "pdf" || s === "xls" || s === "xlsx") return s;
+    return "unknown";
+  };
   const n = (v: unknown): number => {
     if (v === undefined || v === null || v === "") return 0;
     const x = Number(v);
     return Number.isFinite(x) ? x : 0;
   };
   if (!raw || typeof raw !== "object") {
-    return { parsed_count: 0, upload_id: 0, skipped_duplicates: 0, replaced_count: 0 };
+    return {
+      parsed_count: 0,
+      upload_id: 0,
+      skipped_duplicates: 0,
+      replaced_count: 0,
+      detected_format: "unknown",
+    };
   }
   const o = raw as Record<string, unknown>;
   return {
@@ -276,6 +290,7 @@ function coerceUploadStatementResponse(raw: unknown): {
     upload_id: n(o.upload_id ?? o.uploadId),
     skipped_duplicates: n(o.skipped_duplicates ?? o.skippedDuplicates),
     replaced_count: n(o.replaced_count ?? o.replacedCount),
+    detected_format: normalizeFormat(o.detected_format ?? o.detectedFormat),
   };
 }
 

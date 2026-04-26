@@ -240,16 +240,16 @@ export default function App() {
       if (res.parsed_count === 0 && res.skipped_duplicates === 0) {
         setUploadMsg(
           refresh ||
-            "No transaction lines matched. Try a text-based PDF, or check date/description/amount layout."
+            "No transaction lines matched. Try a text-based statement export, or check date/description/amount layout."
         );
       } else if (res.parsed_count === 0 && res.skipped_duplicates > 0) {
         setUploadMsg(
-          `${refresh}No new lines added (${res.skipped_duplicates} duplicate line${res.skipped_duplicates === 1 ? "" : "s"} in this PDF).`
+          `${refresh}No new lines added (${res.skipped_duplicates} duplicate line${res.skipped_duplicates === 1 ? "" : "s"} in this statement).`
         );
       } else {
         const skip =
           res.skipped_duplicates > 0
-            ? ` ${res.skipped_duplicates} duplicate line${res.skipped_duplicates === 1 ? "" : "s"} skipped in this PDF.`
+            ? ` ${res.skipped_duplicates} duplicate line${res.skipped_duplicates === 1 ? "" : "s"} skipped in this statement.`
             : "";
         setUploadMsg(
           `${refresh}Imported ${res.parsed_count} transaction${res.parsed_count === 1 ? "" : "s"}.${skip}`
@@ -267,7 +267,7 @@ export default function App() {
     <div className="app">
       <header className="app-header">
         <h1>Expense Tracker</h1>
-        <p className="tagline">PDF statement · categorize · local database</p>
+        <p className="tagline">Statement upload · categorize · local database</p>
       </header>
 
       <main>
@@ -276,7 +276,7 @@ export default function App() {
             <input
               ref={fileRef}
               type="file"
-              accept="application/pdf,.pdf"
+              accept=".pdf,.xls,.xlsx,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               className="sr-only"
               onChange={onFileChange}
             />
@@ -286,11 +286,13 @@ export default function App() {
               onClick={onPickFile}
               disabled={uploading}
             >
-              {uploading ? "Parsing PDF…" : "Upload bank statement (PDF)"}
+              {uploading
+                ? "Parsing statement…"
+                : "Upload Bank Statement"}
             </button>
             <p className="upload-hint muted">
-              Text-based PDFs work best; each line should look like date,
-              description, and amount.
+              Supports PDF/XLS/XLSX; each row should contain date, description,
+              and amount (or debit/credit).
             </p>
           </div>
           <div className="toolbar-right">

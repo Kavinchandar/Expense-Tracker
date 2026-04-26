@@ -23,6 +23,7 @@ class UploadStatementResponse(BaseModel):
     parsed_count: int
     skipped_duplicates: int = 0
     replaced_count: int = 0
+    detected_format: str = "pdf"
 
 
 class CategoryBody(BaseModel):

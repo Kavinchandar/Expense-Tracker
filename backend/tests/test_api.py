@@ -55,6 +55,46 @@ def test_upload_rejects_non_pdf(client):
     assert r.status_code == 400
 
 
+def test_upload_returns_detected_format_pdf(monkeypatch, client):
+    import services.statement_service as ss
+
+    def fake_extract(_b: bytes):
+        return [{"date": date(2024, 6, 1), "description": "coffee", "amount": -10.0}]
+
+    monkeypatch.setattr(ss.pdf_statement, "extract_transaction_lines_from_pdf", fake_extract)
+
+    r = client.post(
+        "/api/statements/upload",
+        files={"file": ("sample.pdf", b"%PDF-fake", "application/pdf")},
+    )
+    assert r.status_code == 200
+    assert r.json()["detected_format"] == "pdf"
+
+
+def test_upload_returns_detected_format_xlsx(monkeypatch, client):
+    import services.statement_service as ss
+
+    def fake_extract(_b: bytes):
+        return [{"date": date(2024, 6, 2), "description": "metro", "amount": -15.0}]
+
+    monkeypatch.setattr(
+        ss.excel_statement, "extract_transaction_lines_from_xlsx", fake_extract
+    )
+
+    r = client.post(
+        "/api/statements/upload",
+        files={
+            "file": (
+                "sample.xlsx",
+                b"PK\x03\x04-fake",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+        },
+    )
+    assert r.status_code == 200
+    assert r.json()["detected_format"] == "xlsx"
+
+
 def test_patch_transaction_category(client):
     session = db_module.SessionLocal()
     try:
