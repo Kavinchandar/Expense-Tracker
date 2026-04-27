@@ -66,6 +66,10 @@ export type YearlyInsightsPayload = {
   inflow_pct_of_gross: number;
   outflow_pct_of_gross: number;
   total_worth: number | null;
+  all_time_surplus: number;
+  available_to_spend: number;
+  fd_debits_all_time: number;
+  mf_debits_all_time: number;
   /** Gross debits in FDS + Investments categories this calendar year (INR). */
   fd_investment_debits_year: number;
 };

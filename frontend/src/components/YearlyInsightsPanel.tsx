@@ -5,20 +5,24 @@ import {
   type SurplusMonthlyRow,
   type YearlyInsightsPayload,
 } from "../api";
-import { BOFA_USD_BALANCE, BOFA_USD_TO_INR } from "../bofaUsd";
+import { USD_BALANCE, USD_TO_INR } from "../usdBalance";
 import { formatInr } from "../formatInr";
 import { YearlyCashHistogram } from "./YearlyCashHistogram";
 
 type Props = { anchorYear: number };
 
-/** Months to divide by for “avg / month”: full 12 for past years; Jan–current month for the current calendar year. */
-function monthsForAverageDenominator(viewYear: number): number {
-  const d = new Date();
-  const cy = d.getFullYear();
-  const cm = d.getMonth() + 1;
-  if (viewYear < cy) return 12;
-  if (viewYear > cy) return 12;
-  return Math.max(1, cm);
+function parseYearMonth(ym: string): { year: number; month: number } | null {
+  const m = /^(\d{4})-(\d{2})$/.exec(ym.trim());
+  if (!m) return null;
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  if (!Number.isFinite(year) || !Number.isFinite(month)) return null;
+  if (month < 1 || month > 12) return null;
+  return { year, month };
+}
+
+function monthKey(year: number, month: number): number {
+  return year * 12 + (month - 1);
 }
 
 const MONTH_SHORT = [
@@ -37,7 +41,8 @@ const MONTH_SHORT = [
 ] as const;
 
 export function YearlyInsightsPanel({ anchorYear }: Props) {
-  const [year, setYear] = useState(anchorYear);
+  const [startYm, setStartYm] = useState(`${anchorYear}-01`);
+  const [endYm, setEndYm] = useState(`${anchorYear}-12`);
   const [data, setData] = useState<YearlyInsightsPayload | null>(null);
   const [monthlySeries, setMonthlySeries] = useState<SurplusMonthlyRow[] | null>(
     null
@@ -46,14 +51,48 @@ export function YearlyInsightsPanel({ anchorYear }: Props) {
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
-    setYear(anchorYear);
+    setStartYm(`${anchorYear}-01`);
+    setEndYm(`${anchorYear}-12`);
   }, [anchorYear]);
 
+  const range = useMemo(() => {
+    const start = parseYearMonth(startYm);
+    const end = parseYearMonth(endYm);
+    if (!start || !end) return null;
+    const sKey = monthKey(start.year, start.month);
+    const eKey = monthKey(end.year, end.month);
+    if (sKey > eKey) return null;
+    const months = eKey - sKey + 1;
+    return {
+      start,
+      end,
+      months,
+      label: `${MONTH_SHORT[start.month - 1]} ${start.year} - ${MONTH_SHORT[end.month - 1]} ${end.year}`,
+    };
+  }, [startYm, endYm]);
+
   useEffect(() => {
+    if (!range) {
+      setErr("Choose a valid range where From month is before or same as To month.");
+      setData(null);
+      setMonthlySeries(null);
+      setLoading(false);
+      return;
+    }
+    if (range.months > 120) {
+      setErr("Range is too large. Please keep it within 120 months.");
+      setData(null);
+      setMonthlySeries(null);
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     setLoading(true);
     setErr(null);
-    void Promise.all([getYearlyInsights(year), getSurplusMonthly(year, 12, 12)])
+    void Promise.all([
+      getYearlyInsights(range.end.year),
+      getSurplusMonthly(range.end.year, range.end.month, range.months),
+    ])
       .then(([d, m]) => {
         if (!cancelled) {
           setData(d);
@@ -73,36 +112,37 @@ export function YearlyInsightsPanel({ anchorYear }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [year]);
+  }, [range]);
 
-  const yearOptions = useMemo(() => {
-    const cy = new Date().getFullYear();
-    const start = cy - 12;
-    const end = cy + 1;
-    const out: number[] = [];
-    for (let y = start; y <= end; y++) out.push(y);
-    return out;
-  }, []);
+  const monthsInRange = useMemo(() => monthlySeries ?? [], [monthlySeries]);
 
-  const monthsInYear = useMemo(() => {
-    if (!monthlySeries?.length) return [];
-    return monthlySeries.filter((r) => r.year === year);
-  }, [monthlySeries, year]);
-
-  const totalSurplusYear = useMemo(
-    () => monthsInYear.reduce((s, r) => s + r.surplus, 0),
-    [monthsInYear]
+  const totalSurplusInRange = useMemo(
+    () => monthsInRange.reduce((s, r) => s + r.surplus, 0),
+    [monthsInRange]
   );
 
-  const avgDenom = monthsForAverageDenominator(year);
-  const avgMonthlySaving = totalSurplusYear / avgDenom;
+  const avgDenom = Math.max(1, range?.months ?? 1);
+  const avgMonthlySaving = totalSurplusInRange / avgDenom;
 
-  const bofaInr = BOFA_USD_BALANCE * BOFA_USD_TO_INR;
+  const rangeInflow = useMemo(
+    () => monthsInRange.reduce((s, r) => s + r.total_inflow, 0),
+    [monthsInRange]
+  );
+  const rangeOutflow = useMemo(
+    () => monthsInRange.reduce((s, r) => s + r.total_outflow, 0),
+    [monthsInRange]
+  );
+  const rangeGross = rangeInflow + rangeOutflow;
+  const rangeNet = rangeInflow - rangeOutflow;
+  const rangeInPct = rangeGross > 0 ? Number(((100 * rangeInflow) / rangeGross).toFixed(1)) : 0;
+  const rangeOutPct = rangeGross > 0 ? Number(((100 * rangeOutflow) / rangeGross).toFixed(1)) : 0;
 
-  /** Total surplus for the year + BOFA (INR). */
+  const usdInrValue = USD_BALANCE * USD_TO_INR;
+
+  /** All-time surplus + USD converted to INR. */
   const totalNetWorthCombo = useMemo(
-    () => totalSurplusYear + bofaInr,
-    [totalSurplusYear, bofaInr]
+    () => (data?.all_time_surplus ?? 0) + usdInrValue,
+    [data?.all_time_surplus, usdInrValue]
   );
 
   const usdFormatted = useMemo(
@@ -112,45 +152,46 @@ export function YearlyInsightsPanel({ anchorYear }: Props) {
         currency: "USD",
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
-      }).format(BOFA_USD_BALANCE),
+      }).format(USD_BALANCE),
     []
   );
 
-  const avgSavingFootnote = useMemo(() => {
-    const d = new Date();
-    const cy = d.getFullYear();
-    const cm = d.getMonth() + 1;
-    if (year < cy) {
-      return `Total surplus for ${year} ÷ 12 (full year).`;
-    }
-    if (year > cy) {
-      return `Total surplus ÷ 12 (projected over 12 months).`;
-    }
-    return `Year-to-date surplus ÷ ${avgDenom} (Jan–${MONTH_SHORT[cm - 1]} in ${year}; not ÷12 while the year is still in progress).`;
-  }, [year, avgDenom]);
+  const avgSavingFootnote = useMemo(
+    () =>
+      range
+        ? `Range surplus ÷ ${avgDenom} months (${range.label}).`
+        : "",
+    [range, avgDenom]
+  );
 
   return (
     <div className="yearly-insights">
       <h3 className="yearly-insights-title">Year at a glance</h3>
       <p className="muted yearly-insights-lede">
-        BOFA, Indian bank balance, combined net worth (surplus + BOFA), and
-        average savings—plus cash movement and charts below.
+        USD, available-to-spend balance, all-time net worth, and yearly surplus
+        at a glance—plus cash movement and charts below.
       </p>
 
-      <label className="yearly-year-pick">
-        <span className="yearly-year-pick-label">Year</span>
-        <select
-          className="yearly-year-select"
-          value={year}
-          onChange={(e) => setYear(Number(e.target.value))}
-        >
-          {yearOptions.map((y) => (
-            <option key={y} value={y}>
-              {y}
-            </option>
-          ))}
-        </select>
-      </label>
+      <div className="yearly-range-pick">
+        <label className="yearly-year-pick">
+          <span className="yearly-year-pick-label">From</span>
+          <input
+            className="yearly-year-select"
+            type="month"
+            value={startYm}
+            onChange={(e) => setStartYm(e.target.value)}
+          />
+        </label>
+        <label className="yearly-year-pick">
+          <span className="yearly-year-pick-label">To</span>
+          <input
+            className="yearly-year-select"
+            type="month"
+            value={endYm}
+            onChange={(e) => setEndYm(e.target.value)}
+          />
+        </label>
+      </div>
 
       {err ? <p className="error">{err}</p> : null}
 
@@ -158,36 +199,30 @@ export function YearlyInsightsPanel({ anchorYear }: Props) {
         <p className="muted">Loading yearly summary…</p>
       ) : data && monthlySeries ? (
         <>
-          <div className="yearly-stats-row yearly-stats-row--four">
-            <div className="yearly-stat-card yearly-stat-card--bofa">
-              <p className="yearly-stat-label">BOFA</p>
-              <p className="yearly-stat-value">₹{formatInr(bofaInr)}</p>
-              <p className="yearly-stat-sub muted">{usdFormatted}</p>
-              <p className="muted yearly-stat-foot">
-                Update USD balance in{" "}
-                <code className="insights-code">bofaUsd.ts</code> ·{" "}
-                {BOFA_USD_TO_INR} INR/USD
-              </p>
-            </div>
+          <div className="yearly-stats-row yearly-stats-row--five">
             <div className="yearly-stat-card">
-              <p className="yearly-stat-label">Bank balance</p>
+              <p className="yearly-stat-label">Amount available to spend</p>
               <p className="yearly-stat-value">
-                {data.total_worth != null
-                  ? `₹${formatInr(data.total_worth)}`
-                  : "—"}
+                ₹{formatInr(data.available_to_spend)}
               </p>
               <p className="muted yearly-stat-foot">
-                {data.total_worth != null
-                  ? "Ready to spend — latest running balance from Indian imports."
-                  : "Ready to spend — no import balance on file for year-end yet."}
+                Latest imported running balance; fallback excludes FDs/MFs from
+                surplus when no running balance is available.
               </p>
             </div>
             <div className="yearly-stat-card yearly-stat-card--worth">
               <p className="yearly-stat-label">Total net worth</p>
               <p className="yearly-stat-value">₹{formatInr(totalNetWorthCombo)}</p>
               <p className="muted yearly-stat-foot">
-                Total surplus ({year}) ₹{formatInr(totalSurplusYear)} + BOFA ₹
-                {formatInr(bofaInr)}
+                All-time surplus ₹{formatInr(data.all_time_surplus)} + USD ₹
+                {formatInr(usdInrValue)}
+              </p>
+            </div>
+            <div className="yearly-stat-card">
+              <p className="yearly-stat-label">Surplus ({range?.label ?? "range"})</p>
+              <p className="yearly-stat-value">₹{formatInr(totalSurplusInRange)}</p>
+              <p className="muted yearly-stat-foot">
+                Sum of monthly surplus values in the selected range.
               </p>
             </div>
             <div className="yearly-stat-card">
@@ -197,23 +232,53 @@ export function YearlyInsightsPanel({ anchorYear }: Props) {
             </div>
           </div>
 
-          <YearlyCashHistogram year={year} series={monthlySeries} />
+          <div className="yearly-stats-row yearly-stats-row--three">
+            <div className="yearly-stat-card yearly-stat-card--usd">
+              <p className="yearly-stat-label">USD</p>
+              <p className="yearly-stat-value">₹{formatInr(usdInrValue)}</p>
+              <p className="yearly-stat-sub muted">{usdFormatted}</p>
+              <p className="muted yearly-stat-foot">
+                Update USD balance in{" "}
+                <code className="insights-code">usdBalance.ts</code> ·{" "}
+                {USD_TO_INR} INR/USD
+              </p>
+            </div>
+            <div className="yearly-stat-card">
+              <p className="yearly-stat-label">FDs (all time)</p>
+              <p className="yearly-stat-value">₹{formatInr(data.fd_debits_all_time)}</p>
+              <p className="muted yearly-stat-foot">
+                Gross debit amount tagged as FDS across all imported data.
+              </p>
+            </div>
+            <div className="yearly-stat-card">
+              <p className="yearly-stat-label">MF (all time)</p>
+              <p className="yearly-stat-value">₹{formatInr(data.mf_debits_all_time)}</p>
+              <p className="muted yearly-stat-foot">
+                Gross debit amount tagged as INVESTMENTS (MF) across all imported data.
+              </p>
+            </div>
+          </div>
+
+          <YearlyCashHistogram
+            series={monthlySeries}
+            title={`Cash by month (${range?.label ?? "range"})`}
+          />
 
           <div className="yearly-flow-block">
             <h4 className="yearly-flow-heading">Year cash movement</h4>
             <div className="yearly-flow-grid">
               <div className="yearly-flow-cell">
                 <p className="yearly-flow-k">Money in</p>
-                <p className="yearly-flow-n">{formatInr(data.total_inflow)}</p>
+                <p className="yearly-flow-n">{formatInr(rangeInflow)}</p>
                 <p className="muted yearly-flow-pct">
-                  {data.inflow_pct_of_gross}% of movement
+                  {rangeInPct}% of movement
                 </p>
               </div>
               <div className="yearly-flow-cell">
                 <p className="yearly-flow-k">Money out</p>
-                <p className="yearly-flow-n">{formatInr(data.total_outflow)}</p>
+                <p className="yearly-flow-n">{formatInr(rangeOutflow)}</p>
                 <p className="muted yearly-flow-pct">
-                  {data.outflow_pct_of_gross}% of movement
+                  {rangeOutPct}% of movement
                 </p>
               </div>
             </div>
@@ -221,15 +286,15 @@ export function YearlyInsightsPanel({ anchorYear }: Props) {
               className="yearly-split-bar"
               role="img"
               style={
-                data.gross_movement > 0
+                rangeGross > 0
                   ? {
-                      gridTemplateColumns: `${data.inflow_pct_of_gross}fr ${data.outflow_pct_of_gross}fr`,
+                      gridTemplateColumns: `${rangeInPct}fr ${rangeOutPct}fr`,
                     }
                   : undefined
               }
-              aria-label={`In ${data.inflow_pct_of_gross} percent, out ${data.outflow_pct_of_gross} percent`}
+              aria-label={`In ${rangeInPct} percent, out ${rangeOutPct} percent`}
             >
-              {data.gross_movement > 0 ? (
+              {rangeGross > 0 ? (
                 <>
                   <span className="yearly-split-in" />
                   <span className="yearly-split-out" />
@@ -239,8 +304,8 @@ export function YearlyInsightsPanel({ anchorYear }: Props) {
               )}
             </div>
             <p className="muted yearly-flow-meta">
-              Gross movement {formatInr(data.gross_movement)} · Net{" "}
-              <strong className="yearly-net">{formatInr(data.net_flow)}</strong>{" "}
+              Gross movement {formatInr(rangeGross)} · Net{" "}
+              <strong className="yearly-net">{formatInr(rangeNet)}</strong>{" "}
               (in − out)
             </p>
           </div>

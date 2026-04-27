@@ -27,18 +27,15 @@ function formatAxisMoney(n: number): string {
 }
 
 type Props = {
-  year: number;
   series: SurplusMonthlyRow[];
+  title?: string;
 };
 
 /**
  * One column per month: total height = money in; stacked bottom = money out, top = surplus.
  */
-export function YearlyCashHistogram({ year, series }: Props) {
-  const filtered = useMemo(
-    () => series.filter((r) => r.year === year),
-    [series, year]
-  );
+export function YearlyCashHistogram({ series, title = "Cash by month" }: Props) {
+  const filtered = useMemo(() => series, [series]);
 
   const maxInflow = useMemo(() => {
     if (!filtered.length) return 1;
@@ -49,17 +46,17 @@ export function YearlyCashHistogram({ year, series }: Props) {
   if (!filtered.length) {
     return (
       <p className="muted yearly-cash-empty">
-        No transaction data for this year yet.
+        No transaction data for this range yet.
       </p>
     );
   }
 
   return (
     <div className="yearly-cash-histogram" role="img" aria-label="Cash by month">
-      <h4 className="yearly-cash-title">Cash by month</h4>
+      <h4 className="yearly-cash-title">{title}</h4>
       <p className="muted yearly-cash-lede">
         Each column&apos;s height is <strong>money in</strong> for that month (scaled to
-        the largest inflow in {year}). <span className="yearly-cash-legend-inline">
+        the largest inflow in the selected range. <span className="yearly-cash-legend-inline">
           <span className="yearly-swatch yearly-swatch--out" /> Money out
         </span>{" "}
         sits below{" "}

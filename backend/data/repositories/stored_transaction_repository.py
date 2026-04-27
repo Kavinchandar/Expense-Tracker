@@ -190,6 +190,47 @@ class StoredTransactionRepository:
         row = self._session.execute(q).one()
         return float(row[0] or 0.0), float(row[1] or 0.0)
 
+    def lifetime_cashflow_totals(self) -> tuple[float, float]:
+        """Sum credits and debits (as positive outflow) across all non-deleted rows."""
+        inflow = func.coalesce(
+            func.sum(
+                case(
+                    (StoredTransaction.amount > 0, StoredTransaction.amount),
+                    (
+                        (StoredTransaction.amount < 0)
+                        & (
+                            StoredTransaction.category.in_(
+                                list(SURPLUS_DEBIT_COUNTS_TOWARD_INFLOWS_KEYS)
+                            )
+                        ),
+                        -StoredTransaction.amount,
+                    ),
+                    else_=0.0,
+                )
+            ),
+            0.0,
+        )
+        outflow = func.coalesce(
+            func.sum(
+                case(
+                    (
+                        (StoredTransaction.amount < 0)
+                        & (
+                            StoredTransaction.category.notin_(
+                                list(SURPLUS_ALLOCATION_EXPENSE_KEYS)
+                            )
+                        ),
+                        -StoredTransaction.amount,
+                    ),
+                    else_=0.0,
+                )
+            ),
+            0.0,
+        )
+        q = select(inflow, outflow).where(StoredTransaction.deleted_at.is_(None))
+        row = self._session.execute(q).one()
+        return float(row[0] or 0.0), float(row[1] or 0.0)
+
     def yearly_abs_debit_sum_by_categories(
         self, year: int, category_keys: tuple[str, ...]
     ) -> float:
@@ -210,6 +251,25 @@ class StoredTransactionRepository:
         q = select(debit_mag).where(
             StoredTransaction.posted_date >= start,
             StoredTransaction.posted_date <= end,
+            StoredTransaction.deleted_at.is_(None),
+            StoredTransaction.category.in_(list(category_keys)),
+        )
+        return float(self._session.execute(q).scalar_one() or 0.0)
+
+    def lifetime_abs_debit_sum_by_categories(self, category_keys: tuple[str, ...]) -> float:
+        """Sum absolute debit amounts (|amount| for amount < 0) per category across all time."""
+        if not category_keys:
+            return 0.0
+        debit_mag = func.coalesce(
+            func.sum(
+                case(
+                    (StoredTransaction.amount < 0, -StoredTransaction.amount),
+                    else_=0.0,
+                )
+            ),
+            0.0,
+        )
+        q = select(debit_mag).where(
             StoredTransaction.deleted_at.is_(None),
             StoredTransaction.category.in_(list(category_keys)),
         )

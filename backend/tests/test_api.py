@@ -350,7 +350,92 @@ def test_yearly_insights_in_out_pct_and_worth(client):
     assert d["inflow_pct_of_gross"] == pytest.approx(76.9, abs=0.05)
     assert d["outflow_pct_of_gross"] == pytest.approx(23.1, abs=0.05)
     assert d["total_worth"] == pytest.approx(2_000.0)
+    assert d["available_to_spend"] == pytest.approx(2_000.0)
+    assert d["all_time_surplus"] == pytest.approx(12_000.0)
+    assert d["fd_debits_all_time"] == pytest.approx(5_000.0)
+    assert d["mf_debits_all_time"] == pytest.approx(0.0)
     assert d["fd_investment_debits_year"] == pytest.approx(5_000.0)
 
     r2 = client.get("/api/insights/yearly", params={"year": 1969})
     assert r2.status_code == 400
+
+
+def test_yearly_insights_available_to_spend_falls_back_when_balance_missing(client):
+    session = db_module.SessionLocal()
+    try:
+        upload = StatementUpload(filename="year-nobal.pdf")
+        session.add(upload)
+        session.flush()
+        fp1 = line_fingerprint_digest_from_stored(date(2024, 5, 1), 2_000.0, "salary")
+        fp2 = line_fingerprint_digest_from_stored(date(2024, 5, 2), -500.0, "rent")
+        session.add(
+            StoredTransaction(
+                upload_id=upload.id,
+                line_fingerprint=fp1,
+                posted_date=date(2024, 5, 1),
+                description="salary",
+                merchant_key=normalize_description("salary"),
+                amount=2_000.0,
+                category="INFLOW",
+            )
+        )
+        session.add(
+            StoredTransaction(
+                upload_id=upload.id,
+                line_fingerprint=fp2,
+                posted_date=date(2024, 5, 2),
+                description="rent",
+                merchant_key=normalize_description("rent"),
+                amount=-500.0,
+                category="HOUSING_AND_RENT",
+            )
+        )
+        session.commit()
+    finally:
+        session.close()
+
+    r = client.get("/api/insights/yearly", params={"year": 2024})
+    assert r.status_code == 200
+    d = r.json()
+    assert d["total_worth"] == pytest.approx(1_500.0)
+    assert d["available_to_spend"] == pytest.approx(1_500.0)
+    assert d["all_time_surplus"] == pytest.approx(1_500.0)
+    assert d["fd_debits_all_time"] == pytest.approx(0.0)
+    assert d["mf_debits_all_time"] == pytest.approx(0.0)
+
+
+def test_yearly_insights_fallback_available_excludes_fd_mf(client):
+    session = db_module.SessionLocal()
+    try:
+        upload = StatementUpload(filename="year-fallback-liquid.pdf")
+        session.add(upload)
+        session.flush()
+        rows = [
+            (date(2024, 1, 1), 10_000.0, "salary", "INFLOW"),
+            (date(2024, 1, 2), -1_000.0, "food", "FOOD_AND_DINING"),
+            (date(2024, 1, 3), -2_000.0, "fd", "FDS"),
+            (date(2024, 1, 4), -500.0, "mf", "INVESTMENTS"),
+        ]
+        for d, amt, desc, cat in rows:
+            session.add(
+                StoredTransaction(
+                    upload_id=upload.id,
+                    line_fingerprint=line_fingerprint_digest_from_stored(d, amt, desc),
+                    posted_date=d,
+                    description=desc,
+                    merchant_key=normalize_description(desc),
+                    amount=amt,
+                    category=cat,
+                )
+            )
+        session.commit()
+    finally:
+        session.close()
+
+    r = client.get("/api/insights/yearly", params={"year": 2024})
+    assert r.status_code == 200
+    d = r.json()
+    # Surplus includes FDS/MF allocations.
+    assert d["all_time_surplus"] == pytest.approx(11_500.0)
+    # Available-to-spend fallback strips locked debits from that surplus.
+    assert d["available_to_spend"] == pytest.approx(9_000.0)

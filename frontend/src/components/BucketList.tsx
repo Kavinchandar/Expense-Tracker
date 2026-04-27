@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { OVERVIEW_HIDDEN_TX_CATEGORIES, type TransactionsPayload } from "../api";
 import { DELETED_BUCKET_KEY } from "../bucketOrder";
 import { formatInr } from "../formatInr";
@@ -36,6 +36,9 @@ export function BucketList({
   const [filterCategory, setFilterCategory] = useState<string>("");
   const [sortMode, setSortMode] = useState<"date_desc" | "amount_desc" | "amount_asc">("date_desc");
   const [detailDrafts, setDetailDrafts] = useState<Record<string, string>>({});
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkCategory, setBulkCategory] = useState<string>("");
+  const selectAllRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setFilterCategory("");
@@ -136,6 +139,37 @@ export function BucketList({
     return allRowsSorted.filter((t) => t.primary_category === filterCategory);
   }, [allRowsSorted, filterCategory]);
 
+  const selectableRowIds = useMemo(
+    () =>
+      flatRows
+        .map((t) => t.transaction_id)
+        .filter((id): id is string => typeof id === "string" && id.trim() !== ""),
+    [flatRows]
+  );
+
+  useEffect(() => {
+    const visible = new Set(selectableRowIds);
+    setSelectedIds((prev) => {
+      if (prev.size === 0) return prev;
+      const next = new Set<string>();
+      for (const id of prev) {
+        if (visible.has(id)) next.add(id);
+      }
+      return next.size === prev.size ? prev : next;
+    });
+  }, [selectableRowIds]);
+
+  const allVisibleSelected =
+    selectableRowIds.length > 0 &&
+    selectableRowIds.every((id) => selectedIds.has(id));
+  const someVisibleSelected =
+    selectableRowIds.some((id) => selectedIds.has(id)) && !allVisibleSelected;
+
+  useEffect(() => {
+    if (!selectAllRef.current) return;
+    selectAllRef.current.indeterminate = someVisibleSelected;
+  }, [someVisibleSelected]);
+
   if (loading) return <p className="muted">Loading transactions…</p>;
   if (error) return <p className="error">{error}</p>;
   if (!data) return null;
@@ -150,6 +184,29 @@ export function BucketList({
       await assignCategory(transactionId, category);
     } catch (e: unknown) {
       setPatchErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setPatchingId(null);
+    }
+  };
+
+  const onApplyBulkCategory = async () => {
+    if (!bulkCategory || selectedIds.size === 0) return;
+    setPatchErr(null);
+    setPatchingId("__bulk__");
+    let done = 0;
+    try {
+      for (const transactionId of selectedIds) {
+        await assignCategory(transactionId, bulkCategory);
+        done += 1;
+      }
+      setSelectedIds(new Set());
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setPatchErr(
+        done > 0
+          ? `${msg} (${done} transaction${done === 1 ? "" : "s"} updated before the error.)`
+          : msg
+      );
     } finally {
       setPatchingId(null);
     }
@@ -292,6 +349,74 @@ export function BucketList({
             </select>
           </label>
         </div>
+        {flatRows.length > 0 ? (
+          <div className="tx-bulk-row">
+            <label className="tx-bulk-select-all">
+              <input
+                ref={selectAllRef}
+                type="checkbox"
+                checked={allVisibleSelected}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setSelectedIds((prev) => {
+                    const next = new Set(prev);
+                    if (checked) {
+                      for (const id of selectableRowIds) next.add(id);
+                    } else {
+                      for (const id of selectableRowIds) next.delete(id);
+                    }
+                    return next;
+                  });
+                }}
+                disabled={patchingId != null || selectableRowIds.length === 0}
+              />
+              <span>
+                Select all visible
+                {selectedIds.size > 0
+                  ? ` (${selectedIds.size} selected)`
+                  : ""}
+              </span>
+            </label>
+            <label className="tx-bulk-label">
+              Assign selected to{" "}
+              <select
+                className="tx-sort-select"
+                value={bulkCategory}
+                onChange={(e) => setBulkCategory(e.target.value)}
+                disabled={patchingId != null}
+              >
+                <option value="">Choose category</option>
+                {categoryChoices.map((key) => (
+                  <option key={key} value={key}>
+                    {categoryLabels[key] ?? humanizeCategory(key)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              className="btn-tx-bulk"
+              disabled={
+                patchingId != null ||
+                !bulkCategory ||
+                selectedIds.size === 0
+              }
+              onClick={() => void onApplyBulkCategory()}
+            >
+              Apply to selected
+            </button>
+            {selectedIds.size > 0 ? (
+              <button
+                type="button"
+                className="btn-tx-bulk-clear"
+                disabled={patchingId != null}
+                onClick={() => setSelectedIds(new Set())}
+              >
+                Clear selection
+              </button>
+            ) : null}
+          </div>
+        ) : null}
         <p className="tx-list-hint muted">
           {allowOnly ? (
             <>
@@ -303,8 +428,9 @@ export function BucketList({
           ) : (
             <>
               Active rows: assign a bucket or use <strong>Delete</strong> in the last
-              column (sticky on the right if the table scrolls sideways). Deleted
-              rows are listed below and stay out of totals and insights.
+              column (sticky on the right if the table scrolls sideways). Use row
+              checkboxes to assign one category to many transactions at once.
+              Deleted rows are listed below and stay out of totals and insights.
             </>
           )}
         </p>
@@ -339,6 +465,9 @@ export function BucketList({
           <table className="tx-table">
             <thead>
               <tr>
+                <th className="col-select">
+                  <span className="sr-only">Select</span>
+                </th>
                 <th className="col-date">Date</th>
                 <th className="col-desc">Description</th>
                 <th className="col-detail">Notes / detail</th>
@@ -353,13 +482,31 @@ export function BucketList({
               {flatRows.map((t) => {
                 const opts = categoryOptions(categories, t.primary_category);
                 const rowId = t.transaction_id;
+                const rowIdString = String(rowId ?? "");
                 const rowBusy =
-                  patchingId != null &&
-                  rowId != null &&
-                  rowId !== "" &&
-                  String(patchingId) === String(rowId);
+                  patchingId === "__bulk__" ||
+                  (patchingId != null &&
+                    rowId != null &&
+                    rowId !== "" &&
+                    String(patchingId) === String(rowId));
                 return (
                   <tr key={rowId ?? `${t.date}-${t.name}-${t.amount}`}>
+                    <td className="col-select">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(rowIdString)}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setSelectedIds((prev) => {
+                            const next = new Set(prev);
+                            if (checked) next.add(rowIdString);
+                            else next.delete(rowIdString);
+                            return next;
+                          });
+                        }}
+                        disabled={rowBusy || rowId == null || rowId === ""}
+                      />
+                    </td>
                     <td className="col-date">{t.date}</td>
                     <td className="col-desc">
                       <span className="tx-desc-text">

@@ -7,11 +7,18 @@ import {
 } from "../api";
 import { OVERVIEW_SPENDING_CHART_ORDER } from "../bucketOrder";
 import { INFLOW_KEY } from "../bucketOrder";
+import { formatInr } from "../formatInr";
 import { BudgetSpendPieChart } from "./BudgetSpendPieChart";
 
 function spentForBucket(name: string, total: number): number {
   if (name === INFLOW_KEY) return Math.max(0, total);
   return Math.max(0, -total);
+}
+
+function parseBudgetAmount(raw: string): number | null {
+  const n = parseFloat(raw.replace(/,/g, ""));
+  if (Number.isNaN(n) || n < 0) return null;
+  return n;
 }
 
 type Props = {
@@ -63,13 +70,23 @@ export function BudgetDashboard({
     return m;
   }, [data, surplusAlloc]);
 
+  const draftTotalAllocated = useMemo(
+    () =>
+      categoryKeys.reduce((s, key) => {
+        if (key === INFLOW_KEY) return s;
+        const parsed = parseBudgetAmount(edit[key]?.trim() ?? "0");
+        return s + (parsed ?? 0);
+      }, 0),
+    [categoryKeys, edit]
+  );
+
   const onSave = async () => {
     setSaveErr(null);
     const payload: Record<string, number> = {};
     for (const k of categoryKeys) {
       const raw = edit[k]?.trim() ?? "0";
-      const n = parseFloat(raw.replace(/,/g, ""));
-      if (Number.isNaN(n) || n < 0) {
+      const n = parseBudgetAmount(raw);
+      if (n == null) {
         setSaveErr(`Invalid amount for ${labels[k] ?? k}`);
         return;
       }
@@ -116,11 +133,16 @@ export function BudgetDashboard({
         totalOutflow={data.total_outflow}
       />
 
+      <p className="budget-draft-total">
+          Draft total allocated: <strong>{formatInr(draftTotalAllocated)}</strong>
+      </p>
+
       <details className="budget-edit">
         <summary>
           Edit global budgets — one target per category for all months (the month picker only
           changes which month&apos;s spending you compare)
         </summary>
+        
         <div className="budget-edit-grid">
           {categoryKeys.map((key) => (
             <label key={key} className="budget-edit-row">
