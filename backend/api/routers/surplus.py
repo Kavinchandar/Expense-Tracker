@@ -62,6 +62,7 @@ def get_surplus_monthly(
                 total_inflow=row.total_inflow,
                 total_outflow=row.total_outflow,
                 surplus=row.surplus,
+                pf=row.pf,
             )
             for row in result.series
         ],

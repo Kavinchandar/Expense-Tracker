@@ -77,6 +77,8 @@ export type YearlyInsightsPayload = {
   mf_debits_all_time: number;
   /** Gross debits in FDS, Mutual funds, and Investments this calendar year (INR). */
   fd_investment_debits_year: number;
+  /** Cumulative employee PF (12% of basic) through the current month. */
+  pf_cumulative_all_time: number;
 };
 
 export async function getYearlyInsights(
@@ -190,6 +192,8 @@ export type SurplusMonthlyRow = {
   total_inflow: number;
   total_outflow: number;
   surplus: number;
+  /** Employee PF for the month (INR), if tracking applies. */
+  pf?: number | null;
 };
 
 export type SurplusMonthlySeriesPayload = {

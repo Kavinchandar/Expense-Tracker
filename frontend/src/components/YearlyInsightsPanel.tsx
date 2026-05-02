@@ -8,6 +8,7 @@ import {
 import { USD_BALANCE, USD_TO_INR } from "../usdBalance";
 import { formatInr } from "../formatInr";
 import { YearlyCashHistogram } from "./YearlyCashHistogram";
+import { YearlyPfHistogram } from "./YearlyPfHistogram";
 
 type Props = { anchorYear: number };
 
@@ -116,14 +117,6 @@ export function YearlyInsightsPanel({ anchorYear }: Props) {
 
   const monthsInRange = useMemo(() => monthlySeries ?? [], [monthlySeries]);
 
-  const totalSurplusInRange = useMemo(
-    () => monthsInRange.reduce((s, r) => s + r.surplus, 0),
-    [monthsInRange]
-  );
-
-  const avgDenom = Math.max(1, range?.months ?? 1);
-  const avgMonthlySaving = totalSurplusInRange / avgDenom;
-
   const rangeInflow = useMemo(
     () => monthsInRange.reduce((s, r) => s + r.total_inflow, 0),
     [monthsInRange]
@@ -134,15 +127,29 @@ export function YearlyInsightsPanel({ anchorYear }: Props) {
   );
   const rangeGross = rangeInflow + rangeOutflow;
   const rangeNet = rangeInflow - rangeOutflow;
+  /** Same rule as all-time surplus: max(0, in − out), not sum of per-month floors. */
+  const rangeNetSurplus = Math.max(0, rangeNet);
+
+  const avgDenom = Math.max(1, range?.months ?? 1);
+  const avgMonthlySaving = rangeNetSurplus / avgDenom;
   const rangeInPct = rangeGross > 0 ? Number(((100 * rangeInflow) / rangeGross).toFixed(1)) : 0;
   const rangeOutPct = rangeGross > 0 ? Number(((100 * rangeOutflow) / rangeGross).toFixed(1)) : 0;
 
   const usdInrValue = USD_BALANCE * USD_TO_INR;
 
-  /** All-time surplus + USD converted to INR. */
+  /** All-time surplus + USD converted to INR + cumulative employee PF. */
   const totalNetWorthCombo = useMemo(
-    () => (data?.all_time_surplus ?? 0) + usdInrValue,
-    [data?.all_time_surplus, usdInrValue]
+    () =>
+      (data?.all_time_surplus ?? 0) +
+      usdInrValue +
+      (data?.pf_cumulative_all_time ?? 0),
+    [data?.all_time_surplus, data?.pf_cumulative_all_time, usdInrValue]
+  );
+
+  const rangePfTotal = useMemo(
+    () =>
+      monthsInRange.reduce((s, r) => s + (r.pf != null ? r.pf : 0), 0),
+    [monthsInRange]
   );
 
   const usdFormatted = useMemo(
@@ -159,7 +166,7 @@ export function YearlyInsightsPanel({ anchorYear }: Props) {
   const avgSavingFootnote = useMemo(
     () =>
       range
-        ? `Range surplus ÷ ${avgDenom} months (${range.label}).`
+        ? `Range net surplus ÷ ${avgDenom} months (${range.label}).`
         : "",
     [range, avgDenom]
   );
@@ -168,8 +175,8 @@ export function YearlyInsightsPanel({ anchorYear }: Props) {
     <div className="yearly-insights">
       <h3 className="yearly-insights-title">Year at a glance</h3>
       <p className="muted yearly-insights-lede">
-        USD, available-to-spend balance, all-time net worth, and yearly surplus
-        at a glance—plus cash movement and charts below.
+        USD, available-to-spend balance, all-time net worth (including PF), and
+        yearly surplus at a glance—plus cash movement and charts below.
       </p>
 
       <div className="yearly-range-pick">
@@ -215,14 +222,16 @@ export function YearlyInsightsPanel({ anchorYear }: Props) {
               <p className="yearly-stat-value">₹{formatInr(totalNetWorthCombo)}</p>
               <p className="muted yearly-stat-foot">
                 All-time surplus ₹{formatInr(data.all_time_surplus)} + USD ₹
-                {formatInr(usdInrValue)}
+                {formatInr(usdInrValue)} + PF ₹
+                {formatInr(data.pf_cumulative_all_time ?? 0)}
               </p>
             </div>
             <div className="yearly-stat-card">
               <p className="yearly-stat-label">Surplus ({range?.label ?? "range"})</p>
-              <p className="yearly-stat-value">₹{formatInr(totalSurplusInRange)}</p>
+              <p className="yearly-stat-value">₹{formatInr(rangeNetSurplus)}</p>
               <p className="muted yearly-stat-foot">
-                Sum of monthly surplus values in the selected range.
+                Money in minus money out in this range, floored at zero—same rule as
+                all-time surplus, limited to the months you selected.
               </p>
             </div>
             <div className="yearly-stat-card">
@@ -232,36 +241,75 @@ export function YearlyInsightsPanel({ anchorYear }: Props) {
             </div>
           </div>
 
-          <div className="yearly-stats-row yearly-stats-row--three">
-            <div className="yearly-stat-card yearly-stat-card--usd">
-              <p className="yearly-stat-label">USD</p>
-              <p className="yearly-stat-value">₹{formatInr(usdInrValue)}</p>
-              <p className="yearly-stat-sub muted">{usdFormatted}</p>
-              <p className="muted yearly-stat-foot">
-                Update USD balance in{" "}
-                <code className="insights-code">usdBalance.ts</code> ·{" "}
-                {USD_TO_INR} INR/USD
-              </p>
-            </div>
-            <div className="yearly-stat-card">
-              <p className="yearly-stat-label">FDs (all time)</p>
-              <p className="yearly-stat-value">₹{formatInr(data.fd_debits_all_time)}</p>
-              <p className="muted yearly-stat-foot">
-                Gross debit amount tagged as FDS across all imported data.
-              </p>
-            </div>
-            <div className="yearly-stat-card">
-              <p className="yearly-stat-label">MF (all time)</p>
-              <p className="yearly-stat-value">₹{formatInr(data.mf_debits_all_time)}</p>
-              <p className="muted yearly-stat-foot">
-                Gross debit amount tagged as Mutual funds across all imported data.
-              </p>
-            </div>
+          <div className="yearly-card-groups">
+            <section
+              className="yearly-card-section"
+              aria-labelledby="yearly-group-fd-mf-usd"
+            >
+              <h4 className="yearly-card-section-title" id="yearly-group-fd-mf-usd">
+                Investments, contingency funds and long-term wealth
+              </h4>
+              <div className="yearly-stats-row yearly-stats-row--three">
+                <div className="yearly-stat-card">
+                  <p className="yearly-stat-label">FDs (all time)</p>
+                  <p className="yearly-stat-value">
+                    ₹{formatInr(data.fd_debits_all_time)}
+                  </p>
+                  <p className="muted yearly-stat-foot">
+                    Gross debit amount tagged as FDS across all imported data.
+                  </p>
+                </div>
+                <div className="yearly-stat-card">
+                  <p className="yearly-stat-label">MF (all time)</p>
+                  <p className="yearly-stat-value">
+                    ₹{formatInr(data.mf_debits_all_time)}
+                  </p>
+                  <p className="muted yearly-stat-foot">
+                    Gross debit amount tagged as Mutual funds across all imported
+                    data.
+                  </p>
+                </div>
+                <div className="yearly-stat-card yearly-stat-card--usd">
+                  <p className="yearly-stat-label">USD</p>
+                  <p className="yearly-stat-value">₹{formatInr(usdInrValue)}</p>
+                  <p className="yearly-stat-sub muted">{usdFormatted}</p>
+                  <p className="muted yearly-stat-foot">
+                    Update USD balance in{" "}
+                    <code className="insights-code">usdBalance.ts</code> ·{" "}
+                    {USD_TO_INR} INR/USD
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            <section className="yearly-card-section" aria-labelledby="yearly-group-pf">
+              <h4 className="yearly-card-section-title" id="yearly-group-pf">
+                Non-liquid pension savings
+              </h4>
+              <div className="yearly-stats-row yearly-stats-row--single">
+                <div className="yearly-stat-card yearly-stat-card--pf">
+                  <p className="yearly-stat-label">PF</p>
+                  <p className="yearly-stat-value">
+                    ₹{formatInr(data.pf_cumulative_all_time ?? 0)}
+                  </p>
+                  <p className="muted yearly-stat-foot">
+                    Employee PF at 12% of basic (Aug 2025–Mar 2026 vs Apr 2026+ bands),
+                    cumulative only through today&apos;s month (no future months)—not
+                    from bank imports.
+                  </p>
+                </div>
+              </div>
+            </section>
           </div>
 
           <YearlyCashHistogram
             series={monthlySeries}
             title={`Cash by month (${range?.label ?? "range"})`}
+          />
+
+          <YearlyPfHistogram
+            series={monthlySeries}
+            title={`PF by month (${range?.label ?? "range"}) · range total ₹${formatInr(rangePfTotal)}`}
           />
 
           <div className="yearly-flow-block">

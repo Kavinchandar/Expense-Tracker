@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from data.repositories.stored_transaction_repository import StoredTransactionRepository
 from services.exceptions import ValidationError
+from services.pf_service import cumulative_pf_through_today
 
 # Gross debits in these categories for the year (for a savings-inclusive net-worth view).
 _FD_INVESTMENT_CATEGORIES_FOR_YEAR: tuple[str, ...] = (
@@ -63,6 +64,7 @@ def get_yearly_insights(session: Session, year: int) -> dict[str, float | int | 
     fd_investment_debits_year = repo.yearly_abs_debit_sum_by_categories(
         year, _FD_INVESTMENT_CATEGORIES_FOR_YEAR
     )
+    pf_cumulative_all_time = cumulative_pf_through_today()
     return {
         "year": year,
         "total_inflow": total_inflow,
@@ -77,4 +79,5 @@ def get_yearly_insights(session: Session, year: int) -> dict[str, float | int | 
         "fd_debits_all_time": fd_debits_all_time,
         "mf_debits_all_time": mf_debits_all_time,
         "fd_investment_debits_year": fd_investment_debits_year,
+        "pf_cumulative_all_time": pf_cumulative_all_time,
     }

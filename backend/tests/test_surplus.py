@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from datetime import date
 
+import pytest
+
 import db as db_module
 from data.models.statement import StatementUpload, StoredTransaction
 from services.transaction_fingerprint import line_fingerprint_digest_from_stored, normalize_description
@@ -94,9 +96,11 @@ def test_surplus_monthly_series_two_months(client):
     assert series[(2026, 3)]["total_inflow"] == 10000.0
     assert series[(2026, 3)]["total_outflow"] == 3000.0
     assert series[(2026, 3)]["surplus"] == 7000.0
+    assert series[(2026, 3)]["pf"] == pytest.approx(0.12 * 110_417.001)
     assert series[(2026, 4)]["total_inflow"] == 500.0
     assert series[(2026, 4)]["total_outflow"] == 8000.0
     assert series[(2026, 4)]["surplus"] == 0.0
+    assert series[(2026, 4)]["pf"] == pytest.approx(0.12 * 118_887.00)
 
 
 def test_surplus_monthly_excludes_fd_investment_from_outflow(client):
@@ -155,3 +159,26 @@ def test_surplus_monthly_fills_missing_month_with_zeros(client):
         assert row["total_inflow"] == 0.0
         assert row["total_outflow"] == 0.0
         assert row["surplus"] == 0.0
+        assert row["pf"] is not None
+        assert row["pf"] == pytest.approx(0.12 * 110_417.001)
+
+
+def test_surplus_monthly_pf_null_before_aug_2025(client):
+    r = client.get(
+        "/api/surplus/monthly",
+        params={"end_year": 2025, "end_month": 7, "months": 2},
+    )
+    assert r.status_code == 200
+    for row in r.json()["series"]:
+        assert row["pf"] is None
+
+
+def test_surplus_monthly_pf_null_for_future_calendar_month(client):
+    r = client.get(
+        "/api/surplus/monthly",
+        params={"end_year": 2030, "end_month": 6, "months": 1},
+    )
+    assert r.status_code == 200
+    row = r.json()["series"][0]
+    assert row["year"] == 2030 and row["month"] == 6
+    assert row["pf"] is None

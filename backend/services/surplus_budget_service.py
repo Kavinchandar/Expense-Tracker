@@ -12,6 +12,7 @@ from data.repositories.stored_transaction_repository import StoredTransactionRep
 from data.repositories.surplus_repository import SurplusRepository
 from services.buckets import month_date_range
 from services.exceptions import ValidationError
+from services.pf_service import pf_contribution_for_month
 
 
 @dataclass(frozen=True)
@@ -28,6 +29,7 @@ class SurplusMonthlyRow:
     total_inflow: float
     total_outflow: float
     surplus: float
+    pf: float | None = None
 
 
 @dataclass(frozen=True)
@@ -93,6 +95,7 @@ class SurplusBudgetService:
                     total_inflow=ti,
                     total_outflow=to,
                     surplus=surplus,
+                    pf=pf_contribution_for_month(d.year, d.month, date.today()),
                 )
             )
             d = d + relativedelta(months=1)

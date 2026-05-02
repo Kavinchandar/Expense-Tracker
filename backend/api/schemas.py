@@ -72,6 +72,7 @@ class YearlyInsightsResponse(BaseModel):
     fd_debits_all_time: float = 0.0
     mf_debits_all_time: float = 0.0
     fd_investment_debits_year: float = 0.0
+    pf_cumulative_all_time: float = 0.0
 
 
 class SurplusBudgetsResponse(BaseModel):
@@ -90,6 +91,7 @@ class SurplusMonthlySeriesItem(BaseModel):
     total_inflow: float
     total_outflow: float
     surplus: float
+    pf: Optional[float] = None
 
 
 class SurplusMonthlySeriesResponse(BaseModel):

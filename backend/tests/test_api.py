@@ -6,6 +6,7 @@ import pytest
 
 import db as db_module
 from data.models.statement import StatementUpload, StoredTransaction
+from services.pf_service import cumulative_pf_through_today
 from services.transaction_fingerprint import (
     line_fingerprint_digest_from_stored,
     normalize_description,
@@ -355,6 +356,8 @@ def test_yearly_insights_in_out_pct_and_worth(client):
     assert d["fd_debits_all_time"] == pytest.approx(5_000.0)
     assert d["mf_debits_all_time"] == pytest.approx(0.0)
     assert d["fd_investment_debits_year"] == pytest.approx(5_000.0)
+
+    assert d["pf_cumulative_all_time"] == pytest.approx(cumulative_pf_through_today())
 
     r2 = client.get("/api/insights/yearly", params={"year": 1969})
     assert r2.status_code == 400
