@@ -36,7 +36,7 @@ def get_yearly_insights(session: Session, year: int) -> dict[str, float | int | 
     mf_debits_all_time = repo.lifetime_abs_debit_sum_by_categories(_MF_CATEGORY)
     # "Total surplus" includes allocations already moved into FDs/MF.
     all_time_surplus = (
-        lifetime_net_surplus + fd_debits_all_time + mf_debits_all_time
+        lifetime_net_surplus
     )
     liquid_all_time_surplus = max(
         0.0, all_time_surplus - fd_debits_all_time - mf_debits_all_time
