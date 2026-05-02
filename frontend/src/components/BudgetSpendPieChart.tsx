@@ -1,5 +1,9 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { INFLOW_KEY, SPENDING_CHART_ORDER } from "../bucketOrder";
+import {
+  INFLOW_KEY,
+  SPENDING_CHART_ORDER,
+  SURPLUS_OVERVIEW_AGG_KEY,
+} from "../bucketOrder";
 import { formatInr } from "../formatInr";
 
 type Props = {
@@ -73,6 +77,10 @@ const CHART_KEYS = SPENDING_CHART_ORDER as unknown as readonly string[];
 
 /** Stable color index for category keys (matches progress cards). */
 function categoryHueIndex(key: string): number {
+  if (key === SURPLUS_OVERVIEW_AGG_KEY) {
+    const j = CHART_KEYS.indexOf("SURPLUS");
+    return j >= 0 ? j : 0;
+  }
   const i = CHART_KEYS.indexOf(key);
   return i >= 0 ? i : 0;
 }
@@ -369,7 +377,8 @@ export function BudgetSpendPieChart({
           {unbudgetedSpent > 0
             ? " Tan slice is spending in categories with no budget."
             : ""}{" "}
-          Green slice is surplus (inflow minus outflow).
+          Green slice is cash left after expenses (inflow minus outflow). A separate
+          Surplus category card sums FD, mutual funds, investments, and in pocket.
         </p>
       )}
 
@@ -453,7 +462,7 @@ export function BudgetSpendPieChart({
           </div>
           <p className="bucket-card-note muted">
             Received / target
-            {hasSurplusSlice ? " · hover links to green surplus slice" : ""}
+            {hasSurplusSlice ? " · hover links to green cash-left slice" : ""}
           </p>
         </div>
       </div>
@@ -463,7 +472,7 @@ export function BudgetSpendPieChart({
 
 function tooltipTitle(seg: Segment, mode: "budget" | "spent_only"): string {
   if (seg.kind === "surplus") {
-    return `Surplus: ${formatInr(seg.spent)} (money left after expenses this month)`;
+    return `Cash left: ${formatInr(seg.spent)} (inflow minus spending outflow this month)`;
   }
   if (seg.kind === "unbudgeted") {
     return `Unbudgeted spend: ${formatInr(seg.spent)}`;
@@ -476,7 +485,7 @@ function tooltipTitle(seg: Segment, mode: "budget" | "spent_only"): string {
 
 function floaterBody(seg: Segment, mode: "budget" | "spent_only"): string {
   if (seg.kind === "surplus") {
-    return `Cash left this month after all debits: ${formatInr(seg.spent)}.`;
+    return `Cash left this month after consumption outflow: ${formatInr(seg.spent)}.`;
   }
   if (seg.kind === "unbudgeted") {
     return `Spending in categories with no budget set: ${formatInr(seg.spent)}.`;

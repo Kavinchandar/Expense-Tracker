@@ -100,7 +100,7 @@ def test_surplus_monthly_series_two_months(client):
 
 
 def test_surplus_monthly_excludes_fd_investment_from_outflow(client):
-    """FDS, INVESTMENTS, and SURPLUS debits are surplus allocation, not consumption outflow."""
+    """FDS, MUTUAL_FUNDS, INVESTMENTS, and SURPLUS debits are surplus allocation, not consumption outflow."""
     session = db_module.SessionLocal()
     try:
         upload = StatementUpload(filename="seed.pdf")
@@ -123,7 +123,7 @@ def test_surplus_monthly_excludes_fd_investment_from_outflow(client):
 
         add_line(date(2026, 5, 1), 10_000.0, "salary", "INFLOW")
         add_line(date(2026, 5, 2), -2_000.0, "rent", "HOUSING_AND_RENT")
-        add_line(date(2026, 5, 3), -3_000.0, "mutual fund", "INVESTMENTS")
+        add_line(date(2026, 5, 3), -3_000.0, "mutual fund", "MUTUAL_FUNDS")
         add_line(date(2026, 5, 4), -1_000.0, "fd", "FDS")
         add_line(date(2026, 5, 5), -500.0, "alloc", "SURPLUS")
         session.commit()

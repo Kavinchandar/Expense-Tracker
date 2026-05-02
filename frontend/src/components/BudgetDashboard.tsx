@@ -1,10 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { TransactionsPayload } from "../api";
-import {
-  OVERVIEW_HIDDEN_TX_CATEGORIES,
-  saveBudgets,
-  SURPLUS_ALLOCATION_TX_CATEGORIES,
-} from "../api";
+import { saveBudgets, SURPLUS_OVERVIEW_AGG_KEY, SURPLUS_TX_KEYS } from "../api";
 import { OVERVIEW_SPENDING_CHART_ORDER } from "../bucketOrder";
 import { INFLOW_KEY } from "../bucketOrder";
 import { formatInr } from "../formatInr";
@@ -19,6 +15,10 @@ function parseBudgetAmount(raw: string): number | null {
   const n = parseFloat(raw.replace(/,/g, ""));
   if (Number.isNaN(n) || n < 0) return null;
   return n;
+}
+
+function sumSurplusBudgets(budgets: Record<string, number>): number {
+  return SURPLUS_TX_KEYS.reduce((s, k) => s + (budgets[k] ?? 0), 0);
 }
 
 type Props = {
@@ -46,29 +46,49 @@ export function BudgetDashboard({
   const [saving, setSaving] = useState(false);
   const [saveErr, setSaveErr] = useState<string | null>(null);
 
+  const surplusSet = useMemo(() => new Set<string>(SURPLUS_TX_KEYS), []);
+
   useEffect(() => {
     const next: Record<string, string> = {};
     for (const k of categoryKeys) {
-      next[k] = String(budgets[k] ?? 0);
+      if (k === SURPLUS_OVERVIEW_AGG_KEY) {
+        next[k] = String(sumSurplusBudgets(budgets));
+      } else {
+        next[k] = String(budgets[k] ?? 0);
+      }
     }
     setEdit(next);
   }, [budgets, categoryKeys]);
 
-  const surplusAlloc = useMemo(
-    () => new Set<string>(SURPLUS_ALLOCATION_TX_CATEGORIES),
-    []
-  );
-
   const spentByName = useMemo(() => {
     const m = new Map<string, number>();
     if (!data?.buckets) return m;
+    let surplusSpent = 0;
     for (const b of data.buckets) {
-      // Surplus allocation buckets are not consumption outflow; omit from spent mix.
-      if (surplusAlloc.has(b.name)) continue;
+      if (surplusSet.has(b.name)) {
+        surplusSpent += spentForBucket(b.name, b.total);
+        continue;
+      }
       m.set(b.name, spentForBucket(b.name, b.total));
     }
+    if (surplusSpent > 0) {
+      m.set(SURPLUS_OVERVIEW_AGG_KEY, surplusSpent);
+    }
     return m;
-  }, [data, surplusAlloc]);
+  }, [data, surplusSet]);
+
+  const displayLabels: Record<string, string> = useMemo(
+    () => ({ ...labels, [SURPLUS_OVERVIEW_AGG_KEY]: "Surplus" }),
+    [labels]
+  );
+
+  const displayBudgets = useMemo(
+    () => ({
+      ...budgets,
+      [SURPLUS_OVERVIEW_AGG_KEY]: sumSurplusBudgets(budgets),
+    }),
+    [budgets]
+  );
 
   const draftTotalAllocated = useMemo(
     () =>
@@ -82,8 +102,29 @@ export function BudgetDashboard({
 
   const onSave = async () => {
     setSaveErr(null);
-    const payload: Record<string, number> = {};
+    const payload: Record<string, number> = { ...budgets };
     for (const k of categoryKeys) {
+      if (k === SURPLUS_OVERVIEW_AGG_KEY) {
+        const raw = edit[k]?.trim() ?? "0";
+        const newTotal = parseBudgetAmount(raw);
+        if (newTotal == null) {
+          setSaveErr(`Invalid amount for Surplus`);
+          return;
+        }
+        const oldSum = sumSurplusBudgets(budgets);
+        if (oldSum > 0) {
+          for (const sk of SURPLUS_TX_KEYS) {
+            const prev = budgets[sk] ?? 0;
+            payload[sk] = newTotal * (prev / oldSum);
+          }
+        } else {
+          const each = newTotal / SURPLUS_TX_KEYS.length;
+          for (const sk of SURPLUS_TX_KEYS) {
+            payload[sk] = each;
+          }
+        }
+        continue;
+      }
       const raw = edit[k]?.trim() ?? "0";
       const n = parseBudgetAmount(raw);
       if (n == null) {
@@ -91,10 +132,6 @@ export function BudgetDashboard({
         return;
       }
       payload[k] = n;
-    }
-    /* API replaces all bucket keys; keep FD/Investments targets edited only on Surplus flows. */
-    for (const k of OVERVIEW_HIDDEN_TX_CATEGORIES) {
-      payload[k] = budgets[k] ?? 0;
     }
     setSaving(true);
     try {
@@ -117,7 +154,9 @@ export function BudgetDashboard({
       <h3 className="budget-dashboard-title">Buckets & budget</h3>
       <p className="muted budget-dashboard-lede">
         Compare what you planned (budget) to actual spending per bucket. The donut
-        and the cards use the same colors—hover either to highlight.
+        and the cards use the same colors—hover either to highlight. Surplus
+        allocation (FDs, mutual funds, investments, in pocket) is one bucket here;
+        split transactions on the Surplus tab.
       </p>
 
       {saveErr ? <p className="error">{saveErr}</p> : null}
@@ -127,14 +166,14 @@ export function BudgetDashboard({
         month={month}
         spendingChartKeys={OVERVIEW_SPENDING_CHART_ORDER}
         spentByName={spentByName}
-        budgets={budgets}
-        labels={labels}
+        budgets={displayBudgets}
+        labels={displayLabels}
         totalInflow={data.total_inflow}
         totalOutflow={data.total_outflow}
       />
 
       <p className="budget-draft-total">
-          Draft total allocated: <strong>{formatInr(draftTotalAllocated)}</strong>
+        Draft total allocated: <strong>{formatInr(draftTotalAllocated)}</strong>
       </p>
 
       <details className="budget-edit">
@@ -142,11 +181,13 @@ export function BudgetDashboard({
           Edit global budgets — one target per category for all months (the month picker only
           changes which month&apos;s spending you compare)
         </summary>
-        
+
         <div className="budget-edit-grid">
           {categoryKeys.map((key) => (
             <label key={key} className="budget-edit-row">
-              <span className="budget-edit-label">{labels[key] ?? key}</span>
+              <span className="budget-edit-label">
+                {displayLabels[key] ?? labels[key] ?? key}
+              </span>
               <input
                 type="text"
                 inputMode="decimal"

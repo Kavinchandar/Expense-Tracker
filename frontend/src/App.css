@@ -365,6 +365,20 @@
   background: rgba(0, 0, 0, 0.02);
 }
 
+.tx-table tr.tx-bucket-section {
+  background: hsl(220 18% 96%);
+}
+
+.tx-table tr.tx-bucket-section:hover {
+  background: hsl(220 18% 96%);
+}
+
+.tx-table .tx-bucket-section-cell {
+  padding: 0.45rem 0.75rem;
+  font-size: 0.9rem;
+  border-top: 1px solid hsl(220 14% 88%);
+}
+
 .tx-table .col-detail {
   min-width: 10rem;
   max-width: 22rem;

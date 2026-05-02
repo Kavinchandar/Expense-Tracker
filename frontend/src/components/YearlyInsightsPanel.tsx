@@ -254,7 +254,7 @@ export function YearlyInsightsPanel({ anchorYear }: Props) {
               <p className="yearly-stat-label">MF (all time)</p>
               <p className="yearly-stat-value">₹{formatInr(data.mf_debits_all_time)}</p>
               <p className="muted yearly-stat-foot">
-                Gross debit amount tagged as INVESTMENTS (MF) across all imported data.
+                Gross debit amount tagged as Mutual funds across all imported data.
               </p>
             </div>
           </div>

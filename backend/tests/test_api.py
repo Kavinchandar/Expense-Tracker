@@ -351,7 +351,7 @@ def test_yearly_insights_in_out_pct_and_worth(client):
     assert d["outflow_pct_of_gross"] == pytest.approx(23.1, abs=0.05)
     assert d["total_worth"] == pytest.approx(2_000.0)
     assert d["available_to_spend"] == pytest.approx(2_000.0)
-    assert d["all_time_surplus"] == pytest.approx(12_000.0)
+    assert d["all_time_surplus"] == pytest.approx(7_000.0)
     assert d["fd_debits_all_time"] == pytest.approx(5_000.0)
     assert d["mf_debits_all_time"] == pytest.approx(0.0)
     assert d["fd_investment_debits_year"] == pytest.approx(5_000.0)
@@ -414,7 +414,7 @@ def test_yearly_insights_fallback_available_excludes_fd_mf(client):
             (date(2024, 1, 1), 10_000.0, "salary", "INFLOW"),
             (date(2024, 1, 2), -1_000.0, "food", "FOOD_AND_DINING"),
             (date(2024, 1, 3), -2_000.0, "fd", "FDS"),
-            (date(2024, 1, 4), -500.0, "mf", "INVESTMENTS"),
+            (date(2024, 1, 4), -500.0, "mf", "MUTUAL_FUNDS"),
         ]
         for d, amt, desc, cat in rows:
             session.add(
@@ -435,7 +435,9 @@ def test_yearly_insights_fallback_available_excludes_fd_mf(client):
     r = client.get("/api/insights/yearly", params={"year": 2024})
     assert r.status_code == 200
     d = r.json()
-    # Surplus includes FDS/MF allocations.
-    assert d["all_time_surplus"] == pytest.approx(11_500.0)
-    # Available-to-spend fallback strips locked debits from that surplus.
-    assert d["available_to_spend"] == pytest.approx(9_000.0)
+    # Net surplus: inflow minus consumption outflow (surplus allocations excluded from outflow).
+    assert d["all_time_surplus"] == pytest.approx(9_000.0)
+    assert d["fd_debits_all_time"] == pytest.approx(2_000.0)
+    assert d["mf_debits_all_time"] == pytest.approx(500.0)
+    # Available-to-spend fallback strips FD, MF, and investment debits from liquid surplus.
+    assert d["available_to_spend"] == pytest.approx(6_500.0)

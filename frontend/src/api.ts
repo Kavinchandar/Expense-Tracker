@@ -1,3 +1,8 @@
+import {
+  SURPLUS_OVERVIEW_AGG_KEY,
+  SURPLUS_TX_KEYS,
+} from "./bucketOrder";
+
 const API = "/api";
 
 async function readHttpError(r: Response): Promise<string> {
@@ -70,7 +75,7 @@ export type YearlyInsightsPayload = {
   available_to_spend: number;
   fd_debits_all_time: number;
   mf_debits_all_time: number;
-  /** Gross debits in FDS + Investments categories this calendar year (INR). */
+  /** Gross debits in FDS, Mutual funds, and Investments this calendar year (INR). */
   fd_investment_debits_year: number;
 };
 
@@ -152,17 +157,15 @@ export async function saveBudgets(
 
 /**
  * Expense buckets whose debits are surplus allocation (savings/investments), not
- * consumption outflow. Surplus debits also add their magnitude to inflow.
+ * consumption outflow. In-pocket (SURPLUS) debits also add their magnitude to inflow.
  * Matches backend `SURPLUS_ALLOCATION_EXPENSE_KEYS` / `SURPLUS_DEBIT_COUNTS_TOWARD_INFLOWS_KEYS`.
  */
-export const SURPLUS_ALLOCATION_TX_CATEGORIES = [
-  "FDS",
-  "INVESTMENTS",
-  "SURPLUS",
-] as const;
+export const SURPLUS_ALLOCATION_TX_CATEGORIES = SURPLUS_TX_KEYS;
 
 /** Transaction buckets hidden from Overview; manage under Surplus. */
-export const OVERVIEW_HIDDEN_TX_CATEGORIES = ["FDS", "INVESTMENTS"] as const;
+export const OVERVIEW_HIDDEN_TX_CATEGORIES = SURPLUS_TX_KEYS;
+
+export { SURPLUS_OVERVIEW_AGG_KEY, SURPLUS_TX_KEYS };
 
 /** Envelope order for surplus allocation (matches backend `SURPLUS_CATEGORIES`). */
 export const SURPLUS_KEYS = [

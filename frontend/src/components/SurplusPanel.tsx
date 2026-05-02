@@ -8,6 +8,7 @@ import {
   type SurplusMonthlyRow,
   type TransactionsPayload,
 } from "../api";
+import { SURPLUS_SECTION_ORDER } from "../bucketOrder";
 import { BucketList } from "./BucketList";
 import { SurplusPieChart } from "./SurplusPieChart";
 
@@ -114,11 +115,12 @@ export function SurplusPanel({
       <h3 className="surplus-panel-title">Surplus allocation</h3>
       <p className="muted surplus-panel-lede">
         Split the selected month&apos;s cash surplus across your global targets
-        (pie). FD, investment, and Surplus-tagged transactions are listed below
-        (assign those categories here, not on Overview).
-        FD and investment debits are excluded from consumption outflow; Surplus-tagged
-        debits add to inflow and are excluded from consumption outflow.
-        Month-by-month cash in, out, and surplus is on the <strong>Year</strong> tab.
+        (pie). Below, transactions are grouped into FDs, mutual funds, investments,
+        and in pocket — assign those categories here, not on Overview. Overview shows
+        one combined Surplus budget line. FD, MF, and investment debits are excluded
+        from consumption outflow; in-pocket debits add to inflow and are excluded from
+        consumption outflow. Month-by-month cash in, out, and surplus is on the{" "}
+        <strong>Year</strong> tab.
       </p>
 
       {seriesErr ? <p className="error">{seriesErr}</p> : null}
@@ -178,6 +180,7 @@ export function SurplusPanel({
         onDeleteTransaction={onDeleteTransaction}
         onRestoreTransaction={onRestoreTransaction}
         onlyCategories={SURPLUS_ALLOCATION_TX_CATEGORIES}
+        sectionBucketOrder={SURPLUS_SECTION_ORDER}
       />
     </div>
   );

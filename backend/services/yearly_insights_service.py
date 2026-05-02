@@ -8,9 +8,13 @@ from data.repositories.stored_transaction_repository import StoredTransactionRep
 from services.exceptions import ValidationError
 
 # Gross debits in these categories for the year (for a savings-inclusive net-worth view).
-_FD_INVESTMENT_CATEGORIES_FOR_YEAR: tuple[str, ...] = ("FDS", "INVESTMENTS")
+_FD_INVESTMENT_CATEGORIES_FOR_YEAR: tuple[str, ...] = (
+    "FDS",
+    "MUTUAL_FUNDS",
+    "INVESTMENTS",
+)
 _FD_CATEGORY: tuple[str, ...] = ("FDS",)
-_MF_CATEGORY: tuple[str, ...] = ("INVESTMENTS",)
+_MF_CATEGORY: tuple[str, ...] = ("MUTUAL_FUNDS",)
 
 
 def _validate_year(year: int) -> None:
@@ -34,12 +38,19 @@ def get_yearly_insights(session: Session, year: int) -> dict[str, float | int | 
     lifetime_net_surplus = max(0.0, lifetime_inflow - lifetime_outflow)
     fd_debits_all_time = repo.lifetime_abs_debit_sum_by_categories(_FD_CATEGORY)
     mf_debits_all_time = repo.lifetime_abs_debit_sum_by_categories(_MF_CATEGORY)
+    inv_debits_all_time = repo.lifetime_abs_debit_sum_by_categories(
+        ("INVESTMENTS",)
+    )
     # "Total surplus" includes allocations already moved into FDs/MF.
     all_time_surplus = (
         lifetime_net_surplus
     )
     liquid_all_time_surplus = max(
-        0.0, all_time_surplus - fd_debits_all_time - mf_debits_all_time
+        0.0,
+        all_time_surplus
+        - fd_debits_all_time
+        - mf_debits_all_time
+        - inv_debits_all_time,
     )
     end = date(year, 12, 31)
     total_worth = repo.last_balance_on_or_before(end)

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { OVERVIEW_HIDDEN_TX_CATEGORIES, type TransactionsPayload } from "../api";
 import { DELETED_BUCKET_KEY } from "../bucketOrder";
 import { formatInr } from "../formatInr";
@@ -16,6 +16,8 @@ type Props = {
   onRestoreTransaction: (transactionId: string) => Promise<void>;
   /** When set, only these bucket categories are listed (e.g. surplus allocation). */
   onlyCategories?: readonly string[];
+  /** When set with onlyCategories, buckets and rows sort in this order (e.g. FD → MF → …). */
+  sectionBucketOrder?: readonly string[];
 };
 
 export function BucketList({
@@ -29,6 +31,7 @@ export function BucketList({
   onDeleteTransaction,
   onRestoreTransaction,
   onlyCategories,
+  sectionBucketOrder,
 }: Props) {
   const [patchingId, setPatchingId] = useState<string | null>(null);
   const [patchErr, setPatchErr] = useState<string | null>(null);
@@ -77,8 +80,18 @@ export function BucketList({
     if (allowOnly) {
       list = list.filter((b) => allowOnly.has(b.name));
     }
+    if (allowOnly && sectionBucketOrder?.length) {
+      const orderMap = new Map(
+        sectionBucketOrder.map((k, i) => [k, i] as const)
+      );
+      list = [...list].sort((a, b) => {
+        const ia = orderMap.get(a.name) ?? 1_000;
+        const ib = orderMap.get(b.name) ?? 1_000;
+        return ia - ib;
+      });
+    }
     return list;
-  }, [data?.buckets, allowOnly, overviewHidden]);
+  }, [data?.buckets, allowOnly, overviewHidden, sectionBucketOrder]);
 
   const deletedBucket = useMemo(
     () => (data?.buckets ?? []).find((b) => b.name === DELETED_BUCKET_KEY),
@@ -95,7 +108,16 @@ export function BucketList({
   const allRowsSorted = useMemo(() => {
     if (!activeBuckets.length) return [];
     const rows = activeBuckets.flatMap((b) => b.transactions);
+    const orderMap =
+      allowOnly && sectionBucketOrder?.length
+        ? new Map(sectionBucketOrder.map((k, i) => [k, i] as const))
+        : null;
     rows.sort((a, b) => {
+      if (orderMap) {
+        const ia = orderMap.get(a.primary_category) ?? 1_000;
+        const ib = orderMap.get(b.primary_category) ?? 1_000;
+        if (ia !== ib) return ia - ib;
+      }
       if (sortMode === "amount_desc") {
         const byAmount = b.amount - a.amount;
         if (byAmount !== 0) return byAmount;
@@ -108,7 +130,7 @@ export function BucketList({
       return String(b.transaction_id).localeCompare(String(a.transaction_id));
     });
     return rows;
-  }, [activeBuckets, sortMode]);
+  }, [activeBuckets, sortMode, allowOnly, sectionBucketOrder]);
 
   const categoryChoices = useMemo(() => {
     const set = new Set<string>();
@@ -126,13 +148,27 @@ export function BucketList({
     if (allowOnly) {
       arr = arr.filter((c) => allowOnly.has(c));
     }
-    arr.sort((a, b) =>
-      (categoryLabels[a] ?? humanizeCategory(a)).localeCompare(
-        categoryLabels[b] ?? humanizeCategory(b)
-      )
-    );
+    if (allowOnly && sectionBucketOrder?.length) {
+      const orderMap = new Map(
+        sectionBucketOrder.map((k, i) => [k, i] as const)
+      );
+      arr.sort((a, b) => {
+        const ia = orderMap.has(a) ? orderMap.get(a)! : 1_000;
+        const ib = orderMap.has(b) ? orderMap.get(b)! : 1_000;
+        if (ia !== ib) return ia - ib;
+        return (categoryLabels[a] ?? humanizeCategory(a)).localeCompare(
+          categoryLabels[b] ?? humanizeCategory(b)
+        );
+      });
+    } else {
+      arr.sort((a, b) =>
+        (categoryLabels[a] ?? humanizeCategory(a)).localeCompare(
+          categoryLabels[b] ?? humanizeCategory(b)
+        )
+      );
+    }
     return arr;
-  }, [data, categories, categoryLabels, allowOnly, overviewHidden]);
+  }, [data, categories, categoryLabels, allowOnly, overviewHidden, sectionBucketOrder]);
 
   const flatRows = useMemo(() => {
     if (!filterCategory) return allRowsSorted;
@@ -251,15 +287,13 @@ export function BucketList({
         </h2>
         <p className="muted">
           {allowOnly
-            ? `${[...allowOnly]
-                .map((k) => categoryLabels[k] ?? humanizeCategory(k))
-                .join(" · ")} · ${data.year}-${String(data.month).padStart(2, "0")} · ${data.display_timezone}`
+            ? `FDs · mutual funds · investments · in pocket · ${data.year}-${String(data.month).padStart(2, "0")} · ${data.display_timezone}`
             : `Calendar month · ${data.display_timezone}`}
         </p>
         <p className="month-total">
           {allowOnly ? (
             <>
-              Surplus allocation (FD · investments · Surplus), not consumption:{" "}
+              Surplus allocation (not consumption outflow):{" "}
               <strong>
                 {formatInr(Math.abs(surplusSectionNet ?? 0))}
               </strong>
@@ -294,7 +328,10 @@ export function BucketList({
             <dt>
               {allowOnly ? "Consumption outflow" : "Total outflow"}
               {allowOnly ? (
-                <span className="muted"> (excl. FD, investments, Surplus)</span>
+                <span className="muted">
+                  {" "}
+                  (excl. surplus allocation categories)
+                </span>
               ) : null}
             </dt>
             <dd>{formatInr(data.total_outflow)}</dd>
@@ -420,10 +457,9 @@ export function BucketList({
         <p className="tx-list-hint muted">
           {allowOnly ? (
             <>
-              FD and investment debits are excluded from consumption outflow only.
-              Surplus-tagged debits add their amount to inflow and are excluded from
-              consumption outflow. Assign FD or Investments on this tab if a line is
-              missing here.
+              Rows are grouped by surplus bucket. FD, mutual fund, and investment
+              debits are excluded from consumption outflow; in-pocket (Surplus) debits
+              add to inflow and are excluded from consumption outflow.
             </>
           ) : (
             <>
@@ -441,7 +477,7 @@ export function BucketList({
       {showMainEmpty ? (
         <p className="muted">
           {allowOnly
-            ? "No FD or investment transactions for this month. Categorize debits as FDs or Investments here, or pick another month."
+            ? "No surplus allocation transactions for this month. Categorize debits here, or pick another month."
             : "No transactions for this month. Upload a PDF that includes dates in this month, or pick another month."}
         </p>
       ) : null}
@@ -479,7 +515,7 @@ export function BucketList({
               </tr>
             </thead>
             <tbody>
-              {flatRows.map((t) => {
+              {flatRows.map((t, idx) => {
                 const opts = categoryOptions(categories, t.primary_category);
                 const rowId = t.transaction_id;
                 const rowIdString = String(rowId ?? "");
@@ -489,8 +525,26 @@ export function BucketList({
                     rowId != null &&
                     rowId !== "" &&
                     String(patchingId) === String(rowId));
+                const prev = idx > 0 ? flatRows[idx - 1] : null;
+                const showBucketHeader =
+                  Boolean(allowOnly && sectionBucketOrder?.length) &&
+                  (prev == null ||
+                    prev.primary_category !== t.primary_category);
                 return (
-                  <tr key={rowId ?? `${t.date}-${t.name}-${t.amount}`}>
+                  <Fragment
+                    key={rowId ?? `${t.date}-${t.name}-${t.amount}-${idx}`}
+                  >
+                    {showBucketHeader ? (
+                      <tr className="tx-bucket-section">
+                        <td colSpan={7} className="tx-bucket-section-cell">
+                          <strong>
+                            {categoryLabels[t.primary_category] ??
+                              humanizeCategory(t.primary_category)}
+                          </strong>
+                        </td>
+                      </tr>
+                    ) : null}
+                    <tr>
                     <td className="col-select">
                       <input
                         type="checkbox"
@@ -595,6 +649,7 @@ export function BucketList({
                       </button>
                     </td>
                   </tr>
+                  </Fragment>
                 );
               })}
             </tbody>

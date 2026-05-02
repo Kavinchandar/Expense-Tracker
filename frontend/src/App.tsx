@@ -14,6 +14,7 @@ import {
 } from "./api";
 import type { TransactionsPayload } from "./api";
 import { mergeCategoryChange, mergeDetailChange } from "./groupBuckets";
+import { buildOverviewCategoryList } from "./bucketOrder";
 import { BudgetDashboard } from "./components/BudgetDashboard";
 import { BucketList } from "./components/BucketList";
 import { InsightsPanel } from "./components/InsightsPanel";
@@ -63,12 +64,9 @@ export default function App() {
     return { year: p.year, monthNum: p.month };
   }, [month]);
 
-  /** FD and Investments are listed and budgeted from the Surplus tab only. */
+  /** Surplus allocation categories are one combined row on Overview; use Surplus tab for detail. */
   const overviewCategories = useMemo(
-    () =>
-      categories.filter(
-        (c) => c !== "FDS" && c !== "INVESTMENTS"
-      ),
+    () => buildOverviewCategoryList(categories),
     [categories]
   );
 
