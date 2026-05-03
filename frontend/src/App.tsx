@@ -57,6 +57,7 @@ export default function App() {
   const [clearingData, setClearingData] = useState(false);
   const [clearMsg, setClearMsg] = useState<string | null>(null);
   const [clearErr, setClearErr] = useState<string | null>(null);
+  const [uploadDropActive, setUploadDropActive] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const { year, monthNum } = useMemo(() => {
@@ -64,7 +65,7 @@ export default function App() {
     return { year: p.year, monthNum: p.month };
   }, [month]);
 
-  /** Surplus allocation categories are one combined row on Overview; use Surplus tab for detail. */
+  /** Surplus allocation: one combined line on Inflow & Outflow; detail on Surplus per month. */
   const overviewCategories = useMemo(
     () => buildOverviewCategoryList(categories),
     [categories]
@@ -179,6 +180,46 @@ export default function App() {
 
   const onPickFile = () => fileRef.current?.click();
 
+  const uploadStatementFile = useCallback(
+    async (file: File) => {
+      setUploadErr(null);
+      setUploadMsg(null);
+      setUploading(true);
+      try {
+        const res = await uploadStatement(file);
+        const replaced = res.replaced_count ?? 0;
+        const refresh =
+          replaced > 0
+            ? `Cleared ${replaced} existing line${replaced === 1 ? "" : "s"} in that statement's date range. `
+            : "";
+        if (res.parsed_count === 0 && res.skipped_duplicates === 0) {
+          setUploadMsg(
+            refresh ||
+              "No transaction lines matched. Try a text-based statement export, or check date/description/amount layout."
+          );
+        } else if (res.parsed_count === 0 && res.skipped_duplicates > 0) {
+          setUploadMsg(
+            `${refresh}No new lines added (${res.skipped_duplicates} duplicate line${res.skipped_duplicates === 1 ? "" : "s"} in this statement).`
+          );
+        } else {
+          const skip =
+            res.skipped_duplicates > 0
+              ? ` ${res.skipped_duplicates} duplicate line${res.skipped_duplicates === 1 ? "" : "s"} skipped in this statement.`
+              : "";
+          setUploadMsg(
+            `${refresh}Imported ${res.parsed_count} transaction${res.parsed_count === 1 ? "" : "s"}.${skip}`
+          );
+        }
+        await loadTransactions();
+      } catch (err: unknown) {
+        setUploadErr(err instanceof Error ? err.message : String(err));
+      } finally {
+        setUploading(false);
+      }
+    },
+    [loadTransactions]
+  );
+
   const onClearMonth = useCallback(async () => {
     const ok = window.confirm(
       `Clear all transactions for ${year}-${String(monthNum).padStart(2, "0")}? This cannot be undone.`
@@ -225,40 +266,35 @@ export default function App() {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    setUploadErr(null);
-    setUploadMsg(null);
-    setUploading(true);
-    try {
-      const res = await uploadStatement(file);
-      const replaced = res.replaced_count ?? 0;
-      const refresh =
-        replaced > 0
-          ? `Cleared ${replaced} existing line${replaced === 1 ? "" : "s"} in that statement's date range. `
-          : "";
-      if (res.parsed_count === 0 && res.skipped_duplicates === 0) {
-        setUploadMsg(
-          refresh ||
-            "No transaction lines matched. Try a text-based statement export, or check date/description/amount layout."
-        );
-      } else if (res.parsed_count === 0 && res.skipped_duplicates > 0) {
-        setUploadMsg(
-          `${refresh}No new lines added (${res.skipped_duplicates} duplicate line${res.skipped_duplicates === 1 ? "" : "s"} in this statement).`
-        );
-      } else {
-        const skip =
-          res.skipped_duplicates > 0
-            ? ` ${res.skipped_duplicates} duplicate line${res.skipped_duplicates === 1 ? "" : "s"} skipped in this statement.`
-            : "";
-        setUploadMsg(
-          `${refresh}Imported ${res.parsed_count} transaction${res.parsed_count === 1 ? "" : "s"}.${skip}`
-        );
-      }
-      await loadTransactions();
-    } catch (err: unknown) {
-      setUploadErr(err instanceof Error ? err.message : String(err));
-    } finally {
-      setUploading(false);
-    }
+    await uploadStatementFile(file);
+  };
+
+  const onUploadDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = uploading ? "none" : "copy";
+  };
+
+  const onUploadDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (uploading) return;
+    if (!e.dataTransfer.types.includes("Files")) return;
+    setUploadDropActive(true);
+  };
+
+  const onUploadDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const next = e.relatedTarget as Node | null;
+    if (next && e.currentTarget.contains(next)) return;
+    setUploadDropActive(false);
+  };
+
+  const onUploadDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setUploadDropActive(false);
+    if (uploading) return;
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    void uploadStatementFile(file);
   };
 
   return (
@@ -269,58 +305,6 @@ export default function App() {
       </header>
 
       <main>
-        <section className="card toolbar">
-          <div className="upload-block">
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".pdf,.xls,.xlsx,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-              className="sr-only"
-              onChange={onFileChange}
-            />
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={onPickFile}
-              disabled={uploading}
-            >
-              {uploading
-                ? "Parsing statement…"
-                : "Upload Bank Statement"}
-            </button>
-            <p className="upload-hint muted">
-              Supports PDF/XLS/XLSX; each row should contain date, description,
-              and amount (or debit/credit).
-            </p>
-          </div>
-          <div className="toolbar-right">
-            <MonthPicker value={month} onChange={setMonth} />
-            <div className="danger-actions">
-              <button
-                type="button"
-                className="btn-danger"
-                onClick={onClearMonth}
-                disabled={clearingData}
-              >
-                {clearingData ? "Clearing..." : "Clear this month"}
-              </button>
-              <button
-                type="button"
-                className="btn-danger btn-danger-soft"
-                onClick={onClearAll}
-                disabled={clearingData}
-              >
-                {clearingData ? "Clearing..." : "Clear all transactions"}
-              </button>
-            </div>
-          </div>
-        </section>
-
-        {uploadErr ? <p className="error">{uploadErr}</p> : null}
-        {uploadMsg ? <p className="upload-msg muted">{uploadMsg}</p> : null}
-        {clearErr ? <p className="error">{clearErr}</p> : null}
-        {clearMsg ? <p className="upload-msg muted">{clearMsg}</p> : null}
-
         <section className="card app-tab-bar" aria-label="Main views">
           <div className="app-tabs" role="tablist">
             <button
@@ -332,7 +316,7 @@ export default function App() {
               }
               onClick={() => setMainTab("overview")}
             >
-              Overview
+              Inflow &amp; Outflow per month
             </button>
             <button
               type="button"
@@ -343,7 +327,7 @@ export default function App() {
               }
               onClick={() => setMainTab("surplus")}
             >
-              Surplus
+              Surplus per month
             </button>
             <button
               type="button"
@@ -354,10 +338,92 @@ export default function App() {
               }
               onClick={() => setMainTab("yearly")}
             >
-              Year
+              Full picture
             </button>
           </div>
         </section>
+
+        <section className="card toolbar">
+          <div
+            className={
+              "upload-drop-zone" +
+              (uploadDropActive ? " upload-drop-zone--active" : "") +
+              (uploading ? " upload-drop-zone--disabled" : "")
+            }
+            role="region"
+            aria-label="Upload bank statement"
+            onDragEnter={onUploadDragEnter}
+            onDragLeave={onUploadDragLeave}
+            onDragOver={onUploadDragOver}
+            onDrop={onUploadDrop}
+          >
+            <div className="upload-block">
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".pdf,.xls,.xlsx,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                className="sr-only"
+                onChange={onFileChange}
+              />
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={onPickFile}
+                disabled={uploading}
+              >
+                {uploading
+                  ? "Parsing statement…"
+                  : "Upload Bank Statement"}
+              </button>
+              <p className="upload-hint muted">
+                Drag and drop a statement here, or use the button. Supports
+                PDF/XLS/XLSX; each row should contain date, description, and
+                amount (or debit/credit).
+              </p>
+            </div>
+          </div>
+          <div className="toolbar-right">
+            {mainTab === "overview" || mainTab === "surplus" ? (
+              <>
+                <MonthPicker value={month} onChange={setMonth} />
+                <div className="danger-actions">
+                  <button
+                    type="button"
+                    className="btn-danger"
+                    onClick={onClearMonth}
+                    disabled={clearingData}
+                  >
+                    {clearingData ? "Clearing..." : "Clear this month"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-danger btn-danger-soft"
+                    onClick={onClearAll}
+                    disabled={clearingData}
+                  >
+                    {clearingData ? "Clearing..." : "Clear all transactions"}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="danger-actions">
+                <button
+                  type="button"
+                  className="btn-danger btn-danger-soft"
+                  onClick={onClearAll}
+                  disabled={clearingData}
+                >
+                  {clearingData ? "Clearing..." : "Clear all transactions"}
+                </button>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {uploadErr ? <p className="error">{uploadErr}</p> : null}
+        {uploadMsg ? <p className="upload-msg muted">{uploadMsg}</p> : null}
+        {clearErr ? <p className="error">{clearErr}</p> : null}
+        {clearMsg ? <p className="upload-msg muted">{clearMsg}</p> : null}
 
         {mainTab === "overview" ? (
           <>

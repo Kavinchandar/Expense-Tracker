@@ -116,11 +116,11 @@ export function SurplusPanel({
       <p className="muted surplus-panel-lede">
         Split the selected month&apos;s cash surplus across your global targets
         (pie). Below, transactions are grouped into FDs, mutual funds, investments,
-        and in pocket — assign those categories here, not on Overview. Overview shows
-        one combined Surplus budget line. FD, MF, and investment debits are excluded
-        from consumption outflow; in-pocket debits add to inflow and are excluded from
-        consumption outflow. Month-by-month cash in, out, and surplus is on the{" "}
-        <strong>Year</strong> tab.
+        and in pocket — assign those categories here, not on Inflow &amp; Outflow per
+        month. Inflow &amp; Outflow per month shows one combined Surplus budget line.
+        FD, MF, and investment debits are excluded from consumption outflow; in-pocket
+        debits add to inflow and are excluded from consumption outflow. Month-by-month
+        cash in, out, and surplus is on the <strong>Full picture</strong> tab.
       </p>
 
       {seriesErr ? <p className="error">{seriesErr}</p> : null}

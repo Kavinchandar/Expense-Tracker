@@ -191,6 +191,28 @@
   border: 0;
 }
 
+.upload-drop-zone {
+  flex: 1 1 auto;
+  min-width: min(100%, 14rem);
+  padding: 1rem 1.1rem;
+  border-radius: 8px;
+  border: 2px dashed #d0cbc2;
+  background: #fafaf8;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.upload-drop-zone--active {
+  border-color: #6b6560;
+  background: #f3efe6;
+}
+
+.upload-drop-zone--disabled {
+  opacity: 0.72;
+  pointer-events: none;
+}
+
 .upload-block {
   display: flex;
   flex-direction: column;
@@ -975,7 +997,7 @@
   color: #2c2a26;
 }
 
-/* Main view tabs (Overview / Surplus) */
+/* Main view tabs (above month picker / toolbar) */
 .app-tab-bar {
   padding: 0.85rem 1.25rem;
 }
@@ -984,17 +1006,22 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
+  align-items: stretch;
 }
 
 .app-tab {
-  font-size: 0.95rem;
+  font-size: 0.88rem;
   font-weight: 500;
-  padding: 0.45rem 0.95rem;
+  padding: 0.5rem 0.75rem;
   border-radius: 6px;
   border: 1px solid #d8d4cc;
   background: #faf9f6;
   color: #3d3a35;
   cursor: pointer;
+  line-height: 1.25;
+  text-align: center;
+  flex: 1 1 10rem;
+  max-width: 100%;
 }
 
 .app-tab:hover {
