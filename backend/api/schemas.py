@@ -31,10 +31,6 @@ class CategoryBody(BaseModel):
     surplus_subcategory: Optional[str] = Field(default=None, max_length=64)
 
 
-class DetailBody(BaseModel):
-    detail: str = Field(default="", max_length=2048)
-
-
 class CategoriesResponse(BaseModel):
     """`categories` is expense then surplus (full assignable set); split lists for UI."""
 

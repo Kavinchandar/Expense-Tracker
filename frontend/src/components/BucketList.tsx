@@ -14,8 +14,6 @@ type Props = {
   categories: string[];
   categoryLabels: Record<string, string>;
   assignCategory: (transactionId: string, category: string) => Promise<void>;
-  /** Notes / tags; saved separately from dedupe identity. */
-  assignDetail?: (transactionId: string, detail: string) => Promise<void>;
   onDeleteTransaction: (transactionId: string) => Promise<void>;
   onRestoreTransaction: (transactionId: string) => Promise<void>;
   /** When set, only these bucket categories are listed (e.g. surplus allocation). */
@@ -31,7 +29,6 @@ export function BucketList({
   categories,
   categoryLabels,
   assignCategory,
-  assignDetail,
   onDeleteTransaction,
   onRestoreTransaction,
   onlyCategories,
@@ -42,7 +39,6 @@ export function BucketList({
   /** Empty string = show all categories. */
   const [filterCategory, setFilterCategory] = useState<string>("");
   const [sortMode, setSortMode] = useState<"date_desc" | "amount_desc" | "amount_asc">("date_desc");
-  const [detailDrafts, setDetailDrafts] = useState<Record<string, string>>({});
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const selectAllRef = useRef<HTMLInputElement>(null);
 
@@ -50,17 +46,6 @@ export function BucketList({
     setFilterCategory("");
     setSortMode("date_desc");
   }, [data?.year, data?.month]);
-
-  useEffect(() => {
-    if (!data) return;
-    const m: Record<string, string> = {};
-    for (const b of data.buckets) {
-      for (const tx of b.transactions) {
-        m[tx.transaction_id] = tx.detail ?? "";
-      }
-    }
-    setDetailDrafts(m);
-  }, [data]);
 
   const allowOnly = useMemo(
     () =>
@@ -447,7 +432,7 @@ export function BucketList({
                 </th>
                 <th className="col-date">Date</th>
                 <th className="col-desc">Description</th>
-                <th className="col-detail">Notes / detail</th>
+                <th className="col-detail">Details</th>
                 <th className="col-amt">Amount</th>
                 <th className="col-cat">Bucket (category)</th>
                 <th className="col-action" scope="col">
@@ -512,49 +497,16 @@ export function BucketList({
                       </span>
                     </td>
                     <td className="col-detail">
-                      {assignDetail ? (
-                        <textarea
-                          className="tx-detail-input"
-                          rows={2}
-                          value={
-                            detailDrafts[String(rowId)] ?? t.detail ?? ""
-                          }
-                          disabled={rowBusy || rowId == null || rowId === ""}
-                          title="Bank narrative or your notes (not used for duplicate detection)"
-                          onChange={(e) =>
-                            setDetailDrafts((d) => ({
-                              ...d,
-                              [String(rowId)]: e.target.value,
-                            }))
-                          }
-                          onBlur={async () => {
-                            if (!assignDetail) return;
-                            const next =
-                              detailDrafts[String(rowId)] ?? t.detail ?? "";
-                            const orig = t.detail ?? "";
-                            if (next === orig) return;
-                            setPatchErr(null);
-                            setPatchingId(String(rowId));
-                            try {
-                              await assignDetail(String(rowId), next);
-                            } catch (e: unknown) {
-                              setPatchErr(
-                                e instanceof Error ? e.message : String(e)
-                              );
-                              setDetailDrafts((d) => ({
-                                ...d,
-                                [String(rowId)]: orig,
-                              }));
-                            } finally {
-                              setPatchingId(null);
-                            }
-                          }}
-                        />
-                      ) : (
-                        <span className="tx-detail-readonly muted">
-                          {t.detail ?? ""}
-                        </span>
-                      )}
+                      <span
+                        className="tx-detail-readonly muted"
+                        title={
+                          (t.detail ?? "").trim()
+                            ? "From statement import or bank narrative"
+                            : undefined
+                        }
+                      >
+                        {(t.detail ?? "").trim() ? (t.detail ?? "") : ""}
+                      </span>
                     </td>
                     <td className="col-amt tx-amt">
                       {formatInr(t.amount)}

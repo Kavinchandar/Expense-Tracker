@@ -37,7 +37,7 @@ export type TransactionsPayload = {
       transaction_id: string;
       date: string;
       name: string;
-      /** Longer bank text or your notes; not used for dedupe. */
+      /** Bank / import narrative; read-only in the app; not used for dedupe. */
       detail?: string;
       amount: number;
       merchant_name: string | null;
@@ -330,21 +330,6 @@ export async function setTransactionCategory(
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
-    }
-  );
-  if (!r.ok) throw new Error(await readHttpError(r));
-}
-
-export async function setTransactionDetail(
-  transactionId: string,
-  detail: string
-): Promise<void> {
-  const r = await fetch(
-    `${API}/transactions/${encodeURIComponent(transactionId)}/detail`,
-    {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ detail }),
     }
   );
   if (!r.ok) throw new Error(await readHttpError(r));

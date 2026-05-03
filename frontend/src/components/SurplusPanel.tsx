@@ -25,7 +25,6 @@ type Props = {
   surplusCategories: readonly string[];
   categoryLabels: Record<string, string>;
   assignCategory: (transactionId: string, category: string) => Promise<void>;
-  assignDetail: (transactionId: string, detail: string) => Promise<void>;
   onDeleteTransaction: (transactionId: string) => Promise<void>;
   onRestoreTransaction: (transactionId: string) => Promise<void>;
 };
@@ -41,7 +40,6 @@ export function SurplusPanel({
   surplusCategories,
   categoryLabels,
   assignCategory,
-  assignDetail,
   onDeleteTransaction,
   onRestoreTransaction,
 }: Props) {
@@ -178,7 +176,6 @@ export function SurplusPanel({
         categories={[...surplusCategories]}
         categoryLabels={{ ...categoryLabels, ...SURPLUS_TX_BUCKET_LABELS }}
         assignCategory={assignCategory}
-        assignDetail={assignDetail}
         onDeleteTransaction={onDeleteTransaction}
         onRestoreTransaction={onRestoreTransaction}
         onlyCategories={surplusCategories}

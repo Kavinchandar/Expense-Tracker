@@ -267,16 +267,6 @@ class StatementService:
         row.surplus_subcategory = sub if primary == SURPLUS_PRIMARY_KEY else None
         self._session.commit()
 
-    def set_transaction_detail(self, transaction_id: str, detail: str) -> None:
-        row = self._stored.get_by_ref(transaction_id)
-        if row is None:
-            raise NotFoundError("Transaction not found.")
-        if row.deleted_at is not None:
-            raise ValidationError("Restore a deleted transaction before editing notes.")
-
-        row.detail = (detail or "")[:2048]
-        self._session.commit()
-
     def soft_delete_transaction(self, transaction_id: str) -> None:
         ok = self._stored.soft_delete(transaction_id)
         if not ok:

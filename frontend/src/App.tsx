@@ -9,7 +9,6 @@ import {
   getTransactions,
   restoreTransaction,
   setTransactionCategory,
-  setTransactionDetail,
   uploadStatement,
 } from "./api";
 import type { TransactionsPayload } from "./api";
@@ -18,7 +17,7 @@ import {
   EXPENSE_CATEGORY_KEYS,
   SURPLUS_CATEGORY_KEYS,
 } from "./categoryLists";
-import { mergeCategoryChange, mergeDetailChange } from "./groupBuckets";
+import { mergeCategoryChange } from "./groupBuckets";
 import { BudgetDashboard } from "./components/BudgetDashboard";
 import { BucketList } from "./components/BucketList";
 import { InsightsPanel } from "./components/InsightsPanel";
@@ -149,24 +148,6 @@ export default function App() {
       });
       try {
         await setTransactionCategory(transactionId, category);
-      } catch (e) {
-        setTx(previous);
-        throw e;
-      }
-    },
-    []
-  );
-
-  const assignDetail = useCallback(
-    async (transactionId: string, detail: string) => {
-      let previous: TransactionsPayload | null = null;
-      setTx((cur) => {
-        previous = cur;
-        if (!cur) return cur;
-        return mergeDetailChange(cur, transactionId, detail);
-      });
-      try {
-        await setTransactionDetail(transactionId, detail);
       } catch (e) {
         setTx(previous);
         throw e;
@@ -463,7 +444,6 @@ export default function App() {
                 categories={overviewCategories}
                 categoryLabels={categoryLabels}
                 assignCategory={assignCategory}
-                assignDetail={assignDetail}
                 onDeleteTransaction={removeTransaction}
                 onRestoreTransaction={restoreTxn}
               />
@@ -482,7 +462,6 @@ export default function App() {
               surplusCategories={surplusCategories}
               categoryLabels={categoryLabels}
               assignCategory={assignCategory}
-              assignDetail={assignDetail}
               onDeleteTransaction={removeTransaction}
               onRestoreTransaction={restoreTxn}
             />
