@@ -38,13 +38,13 @@ export function BucketList({
   const [patchErr, setPatchErr] = useState<string | null>(null);
   /** Empty string = show all categories. */
   const [filterCategory, setFilterCategory] = useState<string>("");
-  const [sortMode, setSortMode] = useState<"date_desc" | "amount_desc" | "amount_asc">("date_desc");
+  const [sortMode, setSortMode] = useState<"date_desc" | "amount_desc" | "amount_asc">("amount_asc");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const selectAllRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setFilterCategory("");
-    setSortMode("date_desc");
+    setSortMode("amount_asc");
   }, [data?.year, data?.month]);
 
   const allowOnly = useMemo(
