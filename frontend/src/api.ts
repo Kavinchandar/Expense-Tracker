@@ -1,5 +1,6 @@
 import {
-  SURPLUS_OVERVIEW_AGG_KEY,
+  OVERVIEW_SURPLUS_KEY,
+  SURPLUS_PRIMARY_KEY,
   SURPLUS_TX_KEYS,
 } from "./bucketOrder";
 
@@ -40,7 +41,10 @@ export type TransactionsPayload = {
       detail?: string;
       amount: number;
       merchant_name: string | null;
+      /** Effective bucket (surplus sub when stored as Surplus). */
       primary_category: string;
+      stored_category?: string;
+      surplus_subcategory?: string | null;
       detailed_category: string | null;
       pending: boolean;
       is_deleted?: boolean;
@@ -116,7 +120,10 @@ export async function getTransactions(
 }
 
 export type CategoriesPayload = {
+  /** Full assignable set: expense categories then surplus subs (same order as backend). */
   categories: string[];
+  expense_categories: string[];
+  surplus_categories: string[];
   labels: Record<string, string>;
 };
 
@@ -159,15 +166,18 @@ export async function saveBudgets(
 
 /**
  * Expense buckets whose debits are surplus allocation (savings/investments), not
- * consumption outflow. In-pocket (SURPLUS) debits also add their magnitude to inflow.
+ * consumption outflow. Left over (SURPLUS) debits also add their magnitude to inflow.
  * Matches backend `SURPLUS_ALLOCATION_EXPENSE_KEYS` / `SURPLUS_DEBIT_COUNTS_TOWARD_INFLOWS_KEYS`.
  */
 export const SURPLUS_ALLOCATION_TX_CATEGORIES = SURPLUS_TX_KEYS;
 
-/** Transaction buckets hidden from Overview; manage under Surplus. */
-export const OVERVIEW_HIDDEN_TX_CATEGORIES = SURPLUS_TX_KEYS;
+/** Surplus allocation buckets: hidden on Inflow & Outflow; manage on the Surplus tab. */
+export const OVERVIEW_HIDDEN_TX_CATEGORIES = [
+  ...SURPLUS_TX_KEYS,
+  SURPLUS_PRIMARY_KEY,
+] as const;
 
-export { SURPLUS_OVERVIEW_AGG_KEY, SURPLUS_TX_KEYS };
+export { OVERVIEW_SURPLUS_KEY, SURPLUS_PRIMARY_KEY, SURPLUS_TX_KEYS };
 
 /** Envelope order for surplus allocation (matches backend `SURPLUS_CATEGORIES`). */
 export const SURPLUS_KEYS = [
@@ -307,14 +317,19 @@ function coerceUploadStatementResponse(raw: unknown): {
 
 export async function setTransactionCategory(
   transactionId: string,
-  category: string
+  category: string,
+  surplusSubcategory?: string | null
 ): Promise<void> {
+  const body: Record<string, string> = { category };
+  if (surplusSubcategory != null && surplusSubcategory !== "") {
+    body.surplus_subcategory = surplusSubcategory;
+  }
   const r = await fetch(
     `${API}/transactions/${encodeURIComponent(transactionId)}/category`,
     {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ category }),
+      body: JSON.stringify(body),
     }
   );
   if (!r.ok) throw new Error(await readHttpError(r));

@@ -24,8 +24,16 @@ def test_categories(client):
     assert r.status_code == 200
     body = r.json()
     assert "categories" in body
+    assert "expense_categories" in body
+    assert "surplus_categories" in body
     assert "labels" in body
     assert "UNCATEGORIZED" in body["categories"]
+    assert "FDS" in body["surplus_categories"]
+    assert "LEFTOVER" in body["surplus_categories"]
+    assert "FDS" not in body["expense_categories"]
+    assert "SURPLUS" in body["expense_categories"]
+    assert "INSURANCE" in body["expense_categories"]
+    assert set(body["expense_categories"]) & set(body["surplus_categories"]) == set()
     assert body["labels"].get("UNCATEGORIZED") == "Uncategorized"
     assert body["labels"].get("__DELETED__") == "Deleted"
 
@@ -333,7 +341,8 @@ def test_yearly_insights_in_out_pct_and_worth(client):
                 merchant_key=normalize_description("fd"),
                 amount=-5_000.0,
                 balance_after=2_000.0,
-                category="FDS",
+                category="SURPLUS",
+                surplus_subcategory="FDS",
             )
         )
         session.commit()
@@ -414,12 +423,12 @@ def test_yearly_insights_fallback_available_excludes_fd_mf(client):
         session.add(upload)
         session.flush()
         rows = [
-            (date(2024, 1, 1), 10_000.0, "salary", "INFLOW"),
-            (date(2024, 1, 2), -1_000.0, "food", "FOOD_AND_DINING"),
-            (date(2024, 1, 3), -2_000.0, "fd", "FDS"),
-            (date(2024, 1, 4), -500.0, "mf", "MUTUAL_FUNDS"),
+            (date(2024, 1, 1), 10_000.0, "salary", "INFLOW", None),
+            (date(2024, 1, 2), -1_000.0, "food", "FOOD_AND_DINING", None),
+            (date(2024, 1, 3), -2_000.0, "fd", "SURPLUS", "FDS"),
+            (date(2024, 1, 4), -500.0, "mf", "SURPLUS", "MUTUAL_FUNDS"),
         ]
-        for d, amt, desc, cat in rows:
+        for d, amt, desc, cat, sub in rows:
             session.add(
                 StoredTransaction(
                     upload_id=upload.id,
@@ -429,6 +438,7 @@ def test_yearly_insights_fallback_available_excludes_fd_mf(client):
                     merchant_key=normalize_description(desc),
                     amount=amt,
                     category=cat,
+                    surplus_subcategory=sub,
                 )
             )
         session.commit()

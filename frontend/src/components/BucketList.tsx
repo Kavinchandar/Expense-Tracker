@@ -1,6 +1,10 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { OVERVIEW_HIDDEN_TX_CATEGORIES, type TransactionsPayload } from "../api";
-import { DELETED_BUCKET_KEY } from "../bucketOrder";
+import {
+  DELETED_BUCKET_KEY,
+  OVERVIEW_SURPLUS_KEY,
+  SURPLUS_PRIMARY_KEY,
+} from "../bucketOrder";
 import { formatInr } from "../formatInr";
 
 type Props = {
@@ -148,6 +152,14 @@ export function BucketList({
     if (allowOnly) {
       arr = arr.filter((c) => allowOnly.has(c));
     }
+    if (!allowOnly) {
+      arr = arr.filter(
+        (c) => c !== OVERVIEW_SURPLUS_KEY && c !== DELETED_BUCKET_KEY
+      );
+      if (!arr.includes(SURPLUS_PRIMARY_KEY)) {
+        arr.push(SURPLUS_PRIMARY_KEY);
+      }
+    }
     if (allowOnly && sectionBucketOrder?.length) {
       const orderMap = new Map(
         sectionBucketOrder.map((k, i) => [k, i] as const)
@@ -287,7 +299,7 @@ export function BucketList({
         </h2>
         <p className="muted">
           {allowOnly
-            ? `FDs · mutual funds · investments · in pocket · ${data.year}-${String(data.month).padStart(2, "0")} · ${data.display_timezone}`
+            ? `FDs · mutual funds · investments · Left over · ${data.year}-${String(data.month).padStart(2, "0")} · ${data.display_timezone}`
             : `Calendar month · ${data.display_timezone}`}
         </p>
         <p className="month-total">
@@ -458,7 +470,7 @@ export function BucketList({
           {allowOnly ? (
             <>
               Rows are grouped by surplus bucket. FD, mutual fund, and investment
-              debits are excluded from consumption outflow; in-pocket (Surplus) debits
+              debits are excluded from consumption outflow; Left over (Surplus) debits
               add to inflow and are excluded from consumption outflow.
             </>
           ) : (
@@ -516,7 +528,7 @@ export function BucketList({
             </thead>
             <tbody>
               {flatRows.map((t, idx) => {
-                const opts = categoryOptions(categories, t.primary_category);
+                const opts = categoryOptions(categoryChoices, t.primary_category);
                 const rowId = t.transaction_id;
                 const rowIdString = String(rowId ?? "");
                 const rowBusy =

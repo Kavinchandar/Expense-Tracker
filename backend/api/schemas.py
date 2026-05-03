@@ -28,6 +28,7 @@ class UploadStatementResponse(BaseModel):
 
 class CategoryBody(BaseModel):
     category: str = Field(..., min_length=1, max_length=128)
+    surplus_subcategory: Optional[str] = Field(default=None, max_length=64)
 
 
 class DetailBody(BaseModel):
@@ -35,7 +36,11 @@ class DetailBody(BaseModel):
 
 
 class CategoriesResponse(BaseModel):
+    """`categories` is expense then surplus (full assignable set); split lists for UI."""
+
     categories: List[str]
+    expense_categories: List[str]
+    surplus_categories: List[str]
     labels: Dict[str, str]
 
 

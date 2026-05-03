@@ -8,14 +8,14 @@ from data.repositories.stored_transaction_repository import StoredTransactionRep
 from services.exceptions import ValidationError
 from services.pf_service import cumulative_pf_through_today
 
-# Gross debits in these categories for the year (for a savings-inclusive net-worth view).
-_FD_INVESTMENT_CATEGORIES_FOR_YEAR: tuple[str, ...] = (
+# Gross debits in these surplus subs for the year (for a savings-inclusive net-worth view).
+_FD_INVESTMENT_SUBS_FOR_YEAR: tuple[str, ...] = (
     "FDS",
     "MUTUAL_FUNDS",
     "INVESTMENTS",
 )
-_FD_CATEGORY: tuple[str, ...] = ("FDS",)
-_MF_CATEGORY: tuple[str, ...] = ("MUTUAL_FUNDS",)
+_FD_SUB: tuple[str, ...] = ("FDS",)
+_MF_SUB: tuple[str, ...] = ("MUTUAL_FUNDS",)
 
 
 def _validate_year(year: int) -> None:
@@ -37,11 +37,9 @@ def get_yearly_insights(session: Session, year: int) -> dict[str, float | int | 
     net_flow = total_inflow - total_outflow
     lifetime_inflow, lifetime_outflow = repo.lifetime_cashflow_totals()
     lifetime_net_surplus = max(0.0, lifetime_inflow - lifetime_outflow)
-    fd_debits_all_time = repo.lifetime_abs_debit_sum_by_categories(_FD_CATEGORY)
-    mf_debits_all_time = repo.lifetime_abs_debit_sum_by_categories(_MF_CATEGORY)
-    inv_debits_all_time = repo.lifetime_abs_debit_sum_by_categories(
-        ("INVESTMENTS",)
-    )
+    fd_debits_all_time = repo.lifetime_abs_debit_surplus_subs(_FD_SUB)
+    mf_debits_all_time = repo.lifetime_abs_debit_surplus_subs(_MF_SUB)
+    inv_debits_all_time = repo.lifetime_abs_debit_surplus_subs(("INVESTMENTS",))
     # "Total surplus" includes allocations already moved into FDs/MF.
     all_time_surplus = (
         lifetime_net_surplus
@@ -61,8 +59,8 @@ def get_yearly_insights(session: Session, year: int) -> dict[str, float | int | 
         available_to_spend = min(liquid_all_time_surplus, lifetime_net_surplus)
     if total_worth is None:
         total_worth = available_to_spend
-    fd_investment_debits_year = repo.yearly_abs_debit_sum_by_categories(
-        year, _FD_INVESTMENT_CATEGORIES_FOR_YEAR
+    fd_investment_debits_year = repo.yearly_abs_debit_surplus_subs(
+        year, _FD_INVESTMENT_SUBS_FOR_YEAR
     )
     pf_cumulative_all_time = cumulative_pf_through_today()
     return {

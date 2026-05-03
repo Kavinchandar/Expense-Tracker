@@ -34,6 +34,8 @@ class StoredTransaction(Base):
     amount: Mapped[float] = mapped_column(Float)
     balance_after: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     category: Mapped[str] = mapped_column(String(128), default="UNCATEGORIZED")
+    # When category == SURPLUS: FDS, MUTUAL_FUNDS, INVESTMENTS, or LEFTOVER; else null.
+    surplus_subcategory: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
 
     upload: Mapped["StatementUpload"] = relationship(back_populates="transactions")

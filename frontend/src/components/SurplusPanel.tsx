@@ -2,13 +2,15 @@ import { useEffect, useState } from "react";
 import {
   getSurplusMonthly,
   saveSurplusBudgets,
-  SURPLUS_ALLOCATION_TX_CATEGORIES,
   SURPLUS_KEYS,
   SURPLUS_LABELS,
   type SurplusMonthlyRow,
   type TransactionsPayload,
 } from "../api";
-import { SURPLUS_SECTION_ORDER } from "../bucketOrder";
+import {
+  SURPLUS_SECTION_ORDER,
+  SURPLUS_TX_BUCKET_LABELS,
+} from "../bucketOrder";
 import { BucketList } from "./BucketList";
 import { SurplusPieChart } from "./SurplusPieChart";
 
@@ -20,7 +22,7 @@ type Props = {
   tx: TransactionsPayload | null;
   txLoading: boolean;
   txError: string | null;
-  categories: string[];
+  surplusCategories: readonly string[];
   categoryLabels: Record<string, string>;
   assignCategory: (transactionId: string, category: string) => Promise<void>;
   assignDetail: (transactionId: string, detail: string) => Promise<void>;
@@ -36,7 +38,7 @@ export function SurplusPanel({
   tx,
   txLoading,
   txError,
-  categories,
+  surplusCategories,
   categoryLabels,
   assignCategory,
   assignDetail,
@@ -115,12 +117,12 @@ export function SurplusPanel({
       <h3 className="surplus-panel-title">Surplus allocation</h3>
       <p className="muted surplus-panel-lede">
         Split the selected month&apos;s cash surplus across your global targets
-        (pie). Below, transactions are grouped into FDs, mutual funds, investments,
-        and in pocket — assign those categories here, not on Inflow &amp; Outflow per
-        month. Inflow &amp; Outflow per month shows one combined Surplus budget line.
-        FD, MF, and investment debits are excluded from consumption outflow; in-pocket
-        debits add to inflow and are excluded from consumption outflow. Month-by-month
-        cash in, out, and surplus is on the <strong>Full picture</strong> tab.
+        (pie). Tag debits here as FDs, mutual funds, investments, or Left over —
+        they stay off the Inflow &amp; Outflow transaction list (that tab shows one
+        combined Surplus budget line only). FD, MF, and investment debits are excluded
+        from consumption outflow; Left over debits add to inflow and are excluded
+        from consumption outflow. Month-by-month cash in, out, and surplus is on the{" "}
+        <strong>Full picture</strong> tab.
       </p>
 
       {seriesErr ? <p className="error">{seriesErr}</p> : null}
@@ -173,13 +175,13 @@ export function SurplusPanel({
         data={tx}
         loading={txLoading}
         error={txError}
-        categories={categories}
-        categoryLabels={categoryLabels}
+        categories={[...surplusCategories]}
+        categoryLabels={{ ...categoryLabels, ...SURPLUS_TX_BUCKET_LABELS }}
         assignCategory={assignCategory}
         assignDetail={assignDetail}
         onDeleteTransaction={onDeleteTransaction}
         onRestoreTransaction={onRestoreTransaction}
-        onlyCategories={SURPLUS_ALLOCATION_TX_CATEGORIES}
+        onlyCategories={surplusCategories}
         sectionBucketOrder={SURPLUS_SECTION_ORDER}
       />
     </div>

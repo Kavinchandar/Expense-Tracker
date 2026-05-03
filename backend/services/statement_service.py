@@ -8,9 +8,12 @@ from sqlalchemy.orm import Session
 
 from categories import (
     DELETED_BUCKET_KEY,
-    EXPENSE_CATEGORIES,
-    SURPLUS_ALLOCATION_EXPENSE_KEYS,
-    SURPLUS_DEBIT_COUNTS_TOWARD_INFLOWS_KEYS,
+    PATCH_CATEGORY_VALUES,
+    SURPLUS_LEFTOVER_SUB,
+    SURPLUS_PRIMARY_KEY,
+    SURPLUS_SUBCATEGORY_KEYS,
+    normalize_insert_category,
+    normalize_patch_category,
 )
 from config import get_settings
 from data.repositories.statement_upload_repository import StatementUploadRepository
@@ -41,24 +44,26 @@ class MonthlyTransactionsResult:
 @dataclass(frozen=True)
 class UploadStatementResult:
     upload_id: int
-    parsed_count: int  # rows inserted
-    skipped_duplicates: int  # duplicate lines within the same uploaded statement
-    replaced_count: int  # legacy; always 0 (incremental import; no date-range wipe)
-    detected_format: str  # one of: pdf, xls, xlsx
+    parsed_count: int
+    skipped_duplicates: int
+    replaced_count: int
+    detected_format: str
 
 
 def _period_cashflow_and_balances(rows: list[StoredTransaction]) -> tuple[float, float, float | None, float | None]:
     """Sum credits/debits; opening/closing from running balance when ICICI stored it."""
-    surplus_inflow_debits = set(SURPLUS_DEBIT_COUNTS_TOWARD_INFLOWS_KEYS)
     total_inflow = sum(t.amount for t in rows if t.amount > 0)
     total_inflow += sum(
-        -t.amount for t in rows if t.amount < 0 and t.category in surplus_inflow_debits
+        -t.amount
+        for t in rows
+        if t.amount < 0
+        and t.category == SURPLUS_PRIMARY_KEY
+        and (t.surplus_subcategory or SURPLUS_LEFTOVER_SUB) == SURPLUS_LEFTOVER_SUB
     )
-    surplus_alloc = set(SURPLUS_ALLOCATION_EXPENSE_KEYS)
     total_outflow = sum(
         -t.amount
         for t in rows
-        if t.amount < 0 and t.category not in surplus_alloc
+        if t.amount < 0 and t.category != SURPLUS_PRIMARY_KEY
     )
     if not rows:
         return total_inflow, total_outflow, None, None
@@ -73,6 +78,12 @@ def _period_cashflow_and_balances(rows: list[StoredTransaction]) -> tuple[float,
     return total_inflow, total_outflow, opening, closing
 
 
+def _effective_primary_category(t: StoredTransaction) -> str:
+    if t.category == SURPLUS_PRIMARY_KEY and t.surplus_subcategory:
+        return t.surplus_subcategory
+    return t.category
+
+
 def _stored_to_bucket_row(t: StoredTransaction, *, is_deleted: bool = False) -> dict:
     # Never emit null: frontend used `patchingId === id` and null===null disabled every row.
     ref = t.line_fingerprint or str(t.id)
@@ -83,7 +94,9 @@ def _stored_to_bucket_row(t: StoredTransaction, *, is_deleted: bool = False) -> 
         "detail": t.detail or "",
         "amount": t.amount,
         "merchant_name": None,
-        "primary_category": DELETED_BUCKET_KEY if is_deleted else t.category,
+        "primary_category": DELETED_BUCKET_KEY if is_deleted else _effective_primary_category(t),
+        "stored_category": DELETED_BUCKET_KEY if is_deleted else t.category,
+        "surplus_subcategory": None if is_deleted else t.surplus_subcategory,
         "detailed_category": None,
         "pending": False,
         "is_deleted": is_deleted,
@@ -160,9 +173,10 @@ class StatementService:
             global_pre_skip = n_after_intra - len(to_insert)
 
         for row in to_insert:
-            row["category"] = classify(
-                self._session, str(row.get("description", "")), float(row["amount"])
-            )
+            raw = classify(self._session, str(row.get("description", "")), float(row["amount"]))
+            cat, sub = normalize_insert_category(raw)
+            row["category"] = cat
+            row["surplus_subcategory"] = sub
 
         if not to_insert:
             self._session.commit()
@@ -231,10 +245,17 @@ class StatementService:
             display_timezone=settings.display_timezone,
         )
 
-    def set_transaction_category(self, transaction_id: str, category: str) -> None:
-        if category not in EXPENSE_CATEGORIES:
-            allowed = ", ".join(EXPENSE_CATEGORIES)
+    def set_transaction_category(
+        self, transaction_id: str, category: str, surplus_subcategory: str | None = None
+    ) -> None:
+        if category not in PATCH_CATEGORY_VALUES:
+            allowed = ", ".join(sorted(PATCH_CATEGORY_VALUES))
             raise ValidationError(f"Unknown category. Use one of: {allowed}")
+
+        try:
+            primary, sub = normalize_patch_category(category, surplus_subcategory)
+        except ValueError as e:
+            raise ValidationError(str(e)) from e
 
         row = self._stored.get_by_ref(transaction_id)
         if row is None:
@@ -242,7 +263,8 @@ class StatementService:
         if row.deleted_at is not None:
             raise ValidationError("Restore a deleted transaction before changing its category.")
 
-        row.category = category
+        row.category = primary
+        row.surplus_subcategory = sub if primary == SURPLUS_PRIMARY_KEY else None
         self._session.commit()
 
     def set_transaction_detail(self, transaction_id: str, detail: str) -> None:

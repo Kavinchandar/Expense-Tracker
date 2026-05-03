@@ -63,6 +63,7 @@ class StatementUploadRepository:
             detail = (row.get("detail") or "")[:2048]
             merchant_key = normalize_description(desc)
             category = row.get("category", "UNCATEGORIZED")
+            surplus_sub = row.get("surplus_subcategory")
             self._session.add(
                 StoredTransaction(
                     upload_id=upload.id,
@@ -74,6 +75,7 @@ class StatementUploadRepository:
                     amount=row["amount"],
                     balance_after=bal if bal is not None else None,
                     category=category,
+                    surplus_subcategory=surplus_sub,
                 )
             )
             inserted += 1

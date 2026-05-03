@@ -38,7 +38,9 @@ def patch_transaction_category(
     db: Session = Depends(get_db),
 ):
     svc = StatementService(db)
-    svc.set_transaction_category(transaction_id, body.category)
+    svc.set_transaction_category(
+        transaction_id, body.category, body.surplus_subcategory
+    )
     return {"ok": True}
 
 

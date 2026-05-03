@@ -13,8 +13,12 @@ import {
   uploadStatement,
 } from "./api";
 import type { TransactionsPayload } from "./api";
-import { mergeCategoryChange, mergeDetailChange } from "./groupBuckets";
 import { buildOverviewCategoryList } from "./bucketOrder";
+import {
+  EXPENSE_CATEGORY_KEYS,
+  SURPLUS_CATEGORY_KEYS,
+} from "./categoryLists";
+import { mergeCategoryChange, mergeDetailChange } from "./groupBuckets";
 import { BudgetDashboard } from "./components/BudgetDashboard";
 import { BucketList } from "./components/BucketList";
 import { InsightsPanel } from "./components/InsightsPanel";
@@ -43,7 +47,8 @@ export default function App() {
   const [tx, setTx] = useState<TransactionsPayload | null>(null);
   const [txLoading, setTxLoading] = useState(false);
   const [txError, setTxError] = useState<string | null>(null);
-  const [categories, setCategories] = useState<string[]>([]);
+  const [expenseCategories, setExpenseCategories] = useState<string[]>([]);
+  const [surplusCategories, setSurplusCategories] = useState<string[]>([]);
   const [categoryLabels, setCategoryLabels] = useState<Record<string, string>>(
     {}
   );
@@ -65,10 +70,10 @@ export default function App() {
     return { year: p.year, monthNum: p.month };
   }, [month]);
 
-  /** Surplus allocation: one combined line on Inflow & Outflow; detail on Surplus per month. */
+  /** Inflow & Outflow: one Surplus line; surplus subs only on Surplus tab. */
   const overviewCategories = useMemo(
-    () => buildOverviewCategoryList(categories),
-    [categories]
+    () => buildOverviewCategoryList(expenseCategories),
+    [expenseCategories]
   );
 
   const loadTransactions = useCallback(async () => {
@@ -88,11 +93,13 @@ export default function App() {
   useEffect(() => {
     void getCategories()
       .then((c) => {
-        setCategories(c.categories);
+        setExpenseCategories(c.expense_categories);
+        setSurplusCategories(c.surplus_categories);
         setCategoryLabels(c.labels);
       })
       .catch(() => {
-        setCategories(["UNCATEGORIZED"]);
+        setExpenseCategories([...EXPENSE_CATEGORY_KEYS]);
+        setSurplusCategories([...SURPLUS_CATEGORY_KEYS]);
         setCategoryLabels({});
       });
   }, []);
@@ -472,7 +479,7 @@ export default function App() {
               tx={tx}
               txLoading={txLoading}
               txError={txError}
-              categories={categories}
+              surplusCategories={surplusCategories}
               categoryLabels={categoryLabels}
               assignCategory={assignCategory}
               assignDetail={assignDetail}

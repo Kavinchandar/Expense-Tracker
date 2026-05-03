@@ -1,76 +1,71 @@
-/** Must match backend `categories.SPENDING_BUCKET_KEYS` + INFLOW order for UI. */
+/**
+ * UI ordering for charts and overview. Canonical key lists live in
+ * `categoryLists.ts` (keep aligned with `backend/categories.py`).
+ */
+
+import {
+  SPENDING_BUCKET_KEYS_ORDER,
+  SURPLUS_CATEGORY_KEYS,
+  SURPLUS_PRIMARY_KEY,
+} from "./categoryLists";
+
+export {
+  EXPENSE_CATEGORY_KEYS,
+  SURPLUS_CATEGORY_KEYS,
+  SURPLUS_PRIMARY_KEY,
+} from "./categoryLists";
 
 /** Soft-deleted transactions bucket (not a user-assignable category). */
 export const DELETED_BUCKET_KEY = "__DELETED__";
 
-/** Transaction categories that are surplus allocation (split on Surplus tab). */
-export const SURPLUS_TX_KEYS = [
-  "FDS",
-  "MUTUAL_FUNDS",
-  "INVESTMENTS",
-  "SURPLUS",
-] as const;
+/** Alias: transaction surplus subs (same order as `SURPLUS_CATEGORY_KEYS`). */
+export const SURPLUS_TX_KEYS = SURPLUS_CATEGORY_KEYS;
 
-export type SurplusTxKey = (typeof SURPLUS_TX_KEYS)[number];
+export type SurplusTxKey = (typeof SURPLUS_CATEGORY_KEYS)[number];
 
-const SURPLUS_TX_SET = new Set<string>(SURPLUS_TX_KEYS);
+const SURPLUS_SUB_SET = new Set<string>(SURPLUS_CATEGORY_KEYS);
 
 /**
- * Single Overview bucket: sum of budgets/spend for all surplus allocation categories.
- * Not a backend category key.
+ * Overview-only rollup key for combined Surplus budget/spend (not a stored category).
  */
-export const SURPLUS_OVERVIEW_AGG_KEY = "SURPLUS_OVERVIEW_AGG";
+export const OVERVIEW_SURPLUS_KEY = "__OVERVIEW_SURPLUS__";
 
-/** Order of surplus sections on the Surplus tab (matches user buckets). */
-export const SURPLUS_SECTION_ORDER = [
-  "FDS",
-  "MUTUAL_FUNDS",
-  "INVESTMENTS",
-  "SURPLUS",
-] as const;
+/** Default labels for surplus sub-buckets (Surplus tab; API may override). */
+export const SURPLUS_TX_BUCKET_LABELS: Record<SurplusTxKey, string> = {
+  FDS: "FDs",
+  MUTUAL_FUNDS: "Mutual funds",
+  INVESTMENTS: "Investments",
+  LEFTOVER: "Left over",
+};
 
-export const SPENDING_CHART_ORDER = [
-  "HOUSING_AND_RENT",
-  "UTILITY_BILLS",
-  "FOOD_AND_DINING",
-  "FOOD_ORDERED",
-  "COFFEE",
-  "GROCERIES",
-  "TRANSPORTATION",
-  "TRAVEL",
-  "INVESTMENTS",
-  "FDS",
-  "MUTUAL_FUNDS",
-  "INSURANCE",
-  "MEDICAL_BILLS",
-  "SHOPPING",
-  "SUBSCRIPTIONS",
-  "ACTIVITIES",
-  "SURPLUS",
-  "UNCATEGORIZED",
-] as const;
+/** Order of surplus buckets on the Surplus tab. */
+export const SURPLUS_SECTION_ORDER = SURPLUS_CATEGORY_KEYS;
+
+/** Spending keys for charts (matches backend `SPENDING_BUCKET_KEYS`). */
+export const SPENDING_CHART_ORDER = SPENDING_BUCKET_KEYS_ORDER;
 
 /**
- * Overview budget chart: one combined Surplus slice; surplus sub-categories only on Surplus tab.
+ * Overview donut: consumption categories only, plus one Surplus slice (rollup).
  */
 export const OVERVIEW_SPENDING_CHART_ORDER = [
-  ...SPENDING_CHART_ORDER.filter((k) => !SURPLUS_TX_SET.has(k)),
-  SURPLUS_OVERVIEW_AGG_KEY,
+  ...SPENDING_CHART_ORDER.filter((k) => !SURPLUS_SUB_SET.has(k)),
+  OVERVIEW_SURPLUS_KEY,
 ] as const;
 
 /**
- * Overview budget list: all categories except surplus allocation keys, plus one
- * combined Surplus row (inserted before InFlow when present).
+ * Overview budget editor: drop surplus subs and parent `SURPLUS`, then one rollup row before InFlow.
  */
 export function buildOverviewCategoryList(categories: string[]): string[] {
-  const filtered = categories.filter((c) => !SURPLUS_TX_SET.has(c));
+  const filtered = categories.filter(
+    (c) => !SURPLUS_SUB_SET.has(c) && c !== SURPLUS_PRIMARY_KEY
+  );
   const inflowAt = filtered.indexOf("INFLOW");
   if (inflowAt >= 0) {
     const next = [...filtered];
-    next.splice(inflowAt, 0, SURPLUS_OVERVIEW_AGG_KEY);
+    next.splice(inflowAt, 0, OVERVIEW_SURPLUS_KEY);
     return next;
   }
-  return [...filtered, SURPLUS_OVERVIEW_AGG_KEY];
+  return [...filtered, OVERVIEW_SURPLUS_KEY];
 }
 
 export const INFLOW_KEY = "INFLOW";

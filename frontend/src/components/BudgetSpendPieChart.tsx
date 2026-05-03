@@ -1,15 +1,15 @@
 import { useMemo, useState, type ReactNode } from "react";
 import {
   INFLOW_KEY,
+  OVERVIEW_SURPLUS_KEY,
   SPENDING_CHART_ORDER,
-  SURPLUS_OVERVIEW_AGG_KEY,
 } from "../bucketOrder";
 import { formatInr } from "../formatInr";
 
 type Props = {
   year: number;
   month: number;
-  /** Defaults to full `SPENDING_CHART_ORDER`; Overview omits FD/Investments. */
+  /** Defaults to full `SPENDING_CHART_ORDER`; Overview passes a roll-up order. */
   spendingChartKeys?: readonly string[];
   spentByName: Map<string, number>;
   budgets: Record<string, number>;
@@ -77,8 +77,8 @@ const CHART_KEYS = SPENDING_CHART_ORDER as unknown as readonly string[];
 
 /** Stable color index for category keys (matches progress cards). */
 function categoryHueIndex(key: string): number {
-  if (key === SURPLUS_OVERVIEW_AGG_KEY) {
-    const j = CHART_KEYS.indexOf("SURPLUS");
+  if (key === OVERVIEW_SURPLUS_KEY) {
+    const j = CHART_KEYS.indexOf("FDS");
     return j >= 0 ? j : 0;
   }
   const i = CHART_KEYS.indexOf(key);
@@ -377,8 +377,9 @@ export function BudgetSpendPieChart({
           {unbudgetedSpent > 0
             ? " Tan slice is spending in categories with no budget."
             : ""}{" "}
-          Green slice is cash left after expenses (inflow minus outflow). A separate
-          Surplus category card sums FD, mutual funds, investments, and in pocket.
+          Green slice is cash left after expenses (inflow minus outflow). When this
+          chart uses a single Surplus slice, it sums FD, mutual fund, investment, and
+          Left over allocations; detail lives on the Surplus tab.
         </p>
       )}
 

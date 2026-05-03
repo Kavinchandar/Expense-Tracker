@@ -111,7 +111,13 @@ def test_surplus_monthly_excludes_fd_investment_from_outflow(client):
         session.add(upload)
         session.flush()
 
-        def add_line(d: date, amount: float, desc: str, category: str) -> None:
+        def add_line(
+            d: date,
+            amount: float,
+            desc: str,
+            category: str,
+            surplus_subcategory: str | None = None,
+        ) -> None:
             fp = line_fingerprint_digest_from_stored(d, amount, desc)
             session.add(
                 StoredTransaction(
@@ -122,14 +128,15 @@ def test_surplus_monthly_excludes_fd_investment_from_outflow(client):
                     merchant_key=normalize_description(desc),
                     amount=amount,
                     category=category,
+                    surplus_subcategory=surplus_subcategory,
                 )
             )
 
         add_line(date(2026, 5, 1), 10_000.0, "salary", "INFLOW")
         add_line(date(2026, 5, 2), -2_000.0, "rent", "HOUSING_AND_RENT")
-        add_line(date(2026, 5, 3), -3_000.0, "mutual fund", "MUTUAL_FUNDS")
-        add_line(date(2026, 5, 4), -1_000.0, "fd", "FDS")
-        add_line(date(2026, 5, 5), -500.0, "alloc", "SURPLUS")
+        add_line(date(2026, 5, 3), -3_000.0, "mutual fund", "SURPLUS", "MUTUAL_FUNDS")
+        add_line(date(2026, 5, 4), -1_000.0, "fd", "SURPLUS", "FDS")
+        add_line(date(2026, 5, 5), -500.0, "alloc", "SURPLUS", "LEFTOVER")
         session.commit()
     finally:
         session.close()

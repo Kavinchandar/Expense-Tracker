@@ -154,6 +154,64 @@ def _ensure_stored_transaction_soft_delete(engine) -> None:
         )
 
 
+def _ensure_surplus_subcategory_column(engine) -> None:
+    """Add surplus_subcategory; migrate legacy FDS/MF/INV/pocket rows to SURPLUS + sub."""
+    if not str(engine.url).startswith("sqlite"):
+        return
+    insp = inspect(engine)
+    if not insp.has_table("stored_transactions"):
+        return
+    cols = {c["name"] for c in insp.get_columns("stored_transactions")}
+    if "surplus_subcategory" not in cols:
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "ALTER TABLE stored_transactions ADD COLUMN surplus_subcategory VARCHAR(64)"
+                )
+            )
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                UPDATE stored_transactions
+                SET surplus_subcategory = CASE category
+                    WHEN 'SURPLUS' THEN 'LEFTOVER'
+                    ELSE category
+                END,
+                category = 'SURPLUS'
+                WHERE category IN ('FDS', 'MUTUAL_FUNDS', 'INVESTMENTS', 'SURPLUS')
+                  AND (surplus_subcategory IS NULL OR surplus_subcategory = '')
+                """
+            )
+        )
+
+
+def _migrate_budget_surplus_key_to_leftover(engine) -> None:
+    """Rename pocket budget key SURPLUS → LEFTOVER in budget_defaults (SQLite)."""
+    if not str(engine.url).startswith("sqlite"):
+        return
+    insp = inspect(engine)
+    if not insp.has_table("budget_defaults"):
+        return
+    cols = {c["name"] for c in insp.get_columns("budget_defaults")}
+    if "category" not in cols:
+        return
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "UPDATE budget_defaults SET category = 'LEFTOVER' "
+                "WHERE category = 'SURPLUS'"
+            )
+        )
+        if insp.has_table("monthly_budgets"):
+            conn.execute(
+                text(
+                    "UPDATE monthly_budgets SET category = 'LEFTOVER' "
+                    "WHERE category = 'SURPLUS'"
+                )
+            )
+
+
 def create_app() -> FastAPI:
     @asynccontextmanager
     async def lifespan(_: FastAPI):
@@ -173,6 +231,8 @@ def create_app() -> FastAPI:
         _ensure_stored_transaction_merchant_key(engine)
         _ensure_stored_transaction_detail_column(engine)
         _ensure_stored_transaction_soft_delete(engine)
+        _ensure_surplus_subcategory_column(engine)
+        _migrate_budget_surplus_key_to_leftover(engine)
         yield
 
     app = FastAPI(title="Expense Tracker API", lifespan=lifespan)

@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 
-from sqlalchemy import Integer, case, cast, delete, func, select
+from sqlalchemy import Integer, and_, case, cast, delete, func, select
 from sqlalchemy.orm import Session
 
-from categories import SURPLUS_ALLOCATION_EXPENSE_KEYS, SURPLUS_DEBIT_COUNTS_TOWARD_INFLOWS_KEYS
+from categories import SURPLUS_LEFTOVER_SUB, SURPLUS_PRIMARY_KEY
 from data.models.statement import StoredTransaction
 from services.transaction_fingerprint import fingerprint_from_stored
+
+_SUB_COALESCE = func.coalesce(StoredTransaction.surplus_subcategory, SURPLUS_LEFTOVER_SUB)
 
 
 class StoredTransactionRepository:
@@ -98,11 +100,10 @@ class StoredTransactionRepository:
                 case(
                     (StoredTransaction.amount > 0, StoredTransaction.amount),
                     (
-                        (StoredTransaction.amount < 0)
-                        & (
-                            StoredTransaction.category.in_(
-                                list(SURPLUS_DEBIT_COUNTS_TOWARD_INFLOWS_KEYS)
-                            )
+                        and_(
+                            StoredTransaction.amount < 0,
+                            StoredTransaction.category == SURPLUS_PRIMARY_KEY,
+                            _SUB_COALESCE == SURPLUS_LEFTOVER_SUB,
                         ),
                         -StoredTransaction.amount,
                     ),
@@ -115,11 +116,9 @@ class StoredTransactionRepository:
             func.sum(
                 case(
                     (
-                        (StoredTransaction.amount < 0)
-                        & (
-                            StoredTransaction.category.notin_(
-                                list(SURPLUS_ALLOCATION_EXPENSE_KEYS)
-                            )
+                        and_(
+                            StoredTransaction.amount < 0,
+                            StoredTransaction.category != SURPLUS_PRIMARY_KEY,
                         ),
                         -StoredTransaction.amount,
                     ),
@@ -152,11 +151,10 @@ class StoredTransactionRepository:
                 case(
                     (StoredTransaction.amount > 0, StoredTransaction.amount),
                     (
-                        (StoredTransaction.amount < 0)
-                        & (
-                            StoredTransaction.category.in_(
-                                list(SURPLUS_DEBIT_COUNTS_TOWARD_INFLOWS_KEYS)
-                            )
+                        and_(
+                            StoredTransaction.amount < 0,
+                            StoredTransaction.category == SURPLUS_PRIMARY_KEY,
+                            _SUB_COALESCE == SURPLUS_LEFTOVER_SUB,
                         ),
                         -StoredTransaction.amount,
                     ),
@@ -169,11 +167,9 @@ class StoredTransactionRepository:
             func.sum(
                 case(
                     (
-                        (StoredTransaction.amount < 0)
-                        & (
-                            StoredTransaction.category.notin_(
-                                list(SURPLUS_ALLOCATION_EXPENSE_KEYS)
-                            )
+                        and_(
+                            StoredTransaction.amount < 0,
+                            StoredTransaction.category != SURPLUS_PRIMARY_KEY,
                         ),
                         -StoredTransaction.amount,
                     ),
@@ -197,11 +193,10 @@ class StoredTransactionRepository:
                 case(
                     (StoredTransaction.amount > 0, StoredTransaction.amount),
                     (
-                        (StoredTransaction.amount < 0)
-                        & (
-                            StoredTransaction.category.in_(
-                                list(SURPLUS_DEBIT_COUNTS_TOWARD_INFLOWS_KEYS)
-                            )
+                        and_(
+                            StoredTransaction.amount < 0,
+                            StoredTransaction.category == SURPLUS_PRIMARY_KEY,
+                            _SUB_COALESCE == SURPLUS_LEFTOVER_SUB,
                         ),
                         -StoredTransaction.amount,
                     ),
@@ -214,11 +209,9 @@ class StoredTransactionRepository:
             func.sum(
                 case(
                     (
-                        (StoredTransaction.amount < 0)
-                        & (
-                            StoredTransaction.category.notin_(
-                                list(SURPLUS_ALLOCATION_EXPENSE_KEYS)
-                            )
+                        and_(
+                            StoredTransaction.amount < 0,
+                            StoredTransaction.category != SURPLUS_PRIMARY_KEY,
                         ),
                         -StoredTransaction.amount,
                     ),
@@ -231,11 +224,9 @@ class StoredTransactionRepository:
         row = self._session.execute(q).one()
         return float(row[0] or 0.0), float(row[1] or 0.0)
 
-    def yearly_abs_debit_sum_by_categories(
-        self, year: int, category_keys: tuple[str, ...]
-    ) -> float:
-        """Sum absolute debit amounts (|amount| for amount < 0) per category for the calendar year."""
-        if not category_keys:
+    def yearly_abs_debit_surplus_subs(self, year: int, subs: tuple[str, ...]) -> float:
+        """Sum |debit| for rows with category SURPLUS and surplus_subcategory in subs (calendar year)."""
+        if not subs:
             return 0.0
         start = date(year, 1, 1)
         end = date(year, 12, 31)
@@ -252,13 +243,14 @@ class StoredTransactionRepository:
             StoredTransaction.posted_date >= start,
             StoredTransaction.posted_date <= end,
             StoredTransaction.deleted_at.is_(None),
-            StoredTransaction.category.in_(list(category_keys)),
+            StoredTransaction.category == SURPLUS_PRIMARY_KEY,
+            _SUB_COALESCE.in_(list(subs)),
         )
         return float(self._session.execute(q).scalar_one() or 0.0)
 
-    def lifetime_abs_debit_sum_by_categories(self, category_keys: tuple[str, ...]) -> float:
-        """Sum absolute debit amounts (|amount| for amount < 0) per category across all time."""
-        if not category_keys:
+    def lifetime_abs_debit_surplus_subs(self, subs: tuple[str, ...]) -> float:
+        """Sum |debit| for rows with category SURPLUS and surplus_subcategory in subs (all time)."""
+        if not subs:
             return 0.0
         debit_mag = func.coalesce(
             func.sum(
@@ -271,7 +263,8 @@ class StoredTransactionRepository:
         )
         q = select(debit_mag).where(
             StoredTransaction.deleted_at.is_(None),
-            StoredTransaction.category.in_(list(category_keys)),
+            StoredTransaction.category == SURPLUS_PRIMARY_KEY,
+            _SUB_COALESCE.in_(list(subs)),
         )
         return float(self._session.execute(q).scalar_one() or 0.0)
 

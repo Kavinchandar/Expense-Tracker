@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from typing import Literal
 
-from categories import EXPENSE_CATEGORIES
+from categories import PATCH_CATEGORY_VALUES
 
 RuleKind = Literal["substr", "regex", "inflow_if_credit"]
 
@@ -67,7 +67,7 @@ ORDERED_RULES: list[tuple[RuleKind, str, str]] = [
 
 
 def _validate_category(cat: str) -> bool:
-    return cat in EXPENSE_CATEGORIES
+    return cat in PATCH_CATEGORY_VALUES
 
 
 def match_rules(normalized_description: str, amount: float) -> str | None:

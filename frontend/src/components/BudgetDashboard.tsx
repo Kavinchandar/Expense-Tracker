@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { TransactionsPayload } from "../api";
-import { saveBudgets, SURPLUS_OVERVIEW_AGG_KEY, SURPLUS_TX_KEYS } from "../api";
-import { OVERVIEW_SPENDING_CHART_ORDER } from "../bucketOrder";
-import { INFLOW_KEY } from "../bucketOrder";
+import { saveBudgets, OVERVIEW_SURPLUS_KEY, SURPLUS_TX_KEYS } from "../api";
+import { INFLOW_KEY, OVERVIEW_SPENDING_CHART_ORDER } from "../bucketOrder";
 import { formatInr } from "../formatInr";
 import { BudgetSpendPieChart } from "./BudgetSpendPieChart";
 
@@ -51,7 +50,7 @@ export function BudgetDashboard({
   useEffect(() => {
     const next: Record<string, string> = {};
     for (const k of categoryKeys) {
-      if (k === SURPLUS_OVERVIEW_AGG_KEY) {
+      if (k === OVERVIEW_SURPLUS_KEY) {
         next[k] = String(sumSurplusBudgets(budgets));
       } else {
         next[k] = String(budgets[k] ?? 0);
@@ -72,20 +71,20 @@ export function BudgetDashboard({
       m.set(b.name, spentForBucket(b.name, b.total));
     }
     if (surplusSpent > 0) {
-      m.set(SURPLUS_OVERVIEW_AGG_KEY, surplusSpent);
+      m.set(OVERVIEW_SURPLUS_KEY, surplusSpent);
     }
     return m;
   }, [data, surplusSet]);
 
   const displayLabels: Record<string, string> = useMemo(
-    () => ({ ...labels, [SURPLUS_OVERVIEW_AGG_KEY]: "Surplus" }),
+    () => ({ ...labels, [OVERVIEW_SURPLUS_KEY]: "Surplus" }),
     [labels]
   );
 
   const displayBudgets = useMemo(
     () => ({
       ...budgets,
-      [SURPLUS_OVERVIEW_AGG_KEY]: sumSurplusBudgets(budgets),
+      [OVERVIEW_SURPLUS_KEY]: sumSurplusBudgets(budgets),
     }),
     [budgets]
   );
@@ -104,7 +103,7 @@ export function BudgetDashboard({
     setSaveErr(null);
     const payload: Record<string, number> = { ...budgets };
     for (const k of categoryKeys) {
-      if (k === SURPLUS_OVERVIEW_AGG_KEY) {
+      if (k === OVERVIEW_SURPLUS_KEY) {
         const raw = edit[k]?.trim() ?? "0";
         const newTotal = parseBudgetAmount(raw);
         if (newTotal == null) {
@@ -155,8 +154,10 @@ export function BudgetDashboard({
       <p className="muted budget-dashboard-lede">
         Compare what you planned (budget) to actual spending per bucket. The donut
         and the cards use the same colors—hover either to highlight. Surplus
-        allocation (FDs, mutual funds, investments, in pocket) is one bucket here;
-        split transactions on the Surplus tab.
+        allocations (FDs, mutual funds, investments, Left over) roll up to one{" "}
+        <strong>Surplus</strong> line here; open the Surplus tab to split transactions
+        and edit allocation targets. Those debits do not count toward consumption
+        outflow (see totals in the list header).
       </p>
 
       {saveErr ? <p className="error">{saveErr}</p> : null}
