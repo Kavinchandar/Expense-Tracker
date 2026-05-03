@@ -44,7 +44,6 @@ export function BucketList({
   const [sortMode, setSortMode] = useState<"date_desc" | "amount_desc" | "amount_asc">("date_desc");
   const [detailDrafts, setDetailDrafts] = useState<Record<string, string>>({});
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [bulkCategory, setBulkCategory] = useState<string>("");
   const selectAllRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -226,28 +225,19 @@ export function BucketList({
   const summaryBuckets = activeBuckets;
 
   const onCategoryChange = async (transactionId: string, category: string) => {
-    setPatchErr(null);
-    setPatchingId(transactionId);
-    try {
-      await assignCategory(transactionId, category);
-    } catch (e: unknown) {
-      setPatchErr(e instanceof Error ? e.message : String(e));
-    } finally {
-      setPatchingId(null);
-    }
-  };
+    const bulkApply =
+      selectedIds.size > 0 && selectedIds.has(transactionId);
+    const targets = bulkApply ? Array.from(selectedIds) : [transactionId];
 
-  const onApplyBulkCategory = async () => {
-    if (!bulkCategory || selectedIds.size === 0) return;
     setPatchErr(null);
-    setPatchingId("__bulk__");
+    setPatchingId(bulkApply ? "__bulk__" : transactionId);
     let done = 0;
     try {
-      for (const transactionId of selectedIds) {
-        await assignCategory(transactionId, bulkCategory);
+      for (const id of targets) {
+        await assignCategory(id, category);
         done += 1;
       }
-      setSelectedIds(new Set());
+      if (bulkApply) setSelectedIds(new Set());
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       setPatchErr(
@@ -328,6 +318,9 @@ export function BucketList({
                       ? ` · ${deletedRows.length} deleted`
                       : ""
                   }`}
+              {selectedIds.size > 0
+                ? ` · ${selectedIds.size} selected`
+                : ""}
             </span>
           ) : null}
         </p>
@@ -398,90 +391,6 @@ export function BucketList({
             </select>
           </label>
         </div>
-        {flatRows.length > 0 ? (
-          <div className="tx-bulk-row">
-            <label className="tx-bulk-select-all">
-              <input
-                ref={selectAllRef}
-                type="checkbox"
-                checked={allVisibleSelected}
-                onChange={(e) => {
-                  const checked = e.target.checked;
-                  setSelectedIds((prev) => {
-                    const next = new Set(prev);
-                    if (checked) {
-                      for (const id of selectableRowIds) next.add(id);
-                    } else {
-                      for (const id of selectableRowIds) next.delete(id);
-                    }
-                    return next;
-                  });
-                }}
-                disabled={patchingId != null || selectableRowIds.length === 0}
-              />
-              <span>
-                Select all visible
-                {selectedIds.size > 0
-                  ? ` (${selectedIds.size} selected)`
-                  : ""}
-              </span>
-            </label>
-            <label className="tx-bulk-label">
-              Assign selected to{" "}
-              <select
-                className="tx-sort-select"
-                value={bulkCategory}
-                onChange={(e) => setBulkCategory(e.target.value)}
-                disabled={patchingId != null}
-              >
-                <option value="">Choose category</option>
-                {categoryChoices.map((key) => (
-                  <option key={key} value={key}>
-                    {categoryLabels[key] ?? humanizeCategory(key)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button
-              type="button"
-              className="btn-tx-bulk"
-              disabled={
-                patchingId != null ||
-                !bulkCategory ||
-                selectedIds.size === 0
-              }
-              onClick={() => void onApplyBulkCategory()}
-            >
-              Apply to selected
-            </button>
-            {selectedIds.size > 0 ? (
-              <button
-                type="button"
-                className="btn-tx-bulk-clear"
-                disabled={patchingId != null}
-                onClick={() => setSelectedIds(new Set())}
-              >
-                Clear selection
-              </button>
-            ) : null}
-          </div>
-        ) : null}
-        <p className="tx-list-hint muted">
-          {allowOnly ? (
-            <>
-              Rows are grouped by surplus bucket. FD, mutual fund, and investment
-              debits are excluded from consumption outflow; Left over (Surplus) debits
-              add to inflow and are excluded from consumption outflow.
-            </>
-          ) : (
-            <>
-              Active rows: assign a bucket or use <strong>Delete</strong> in the last
-              column (sticky on the right if the table scrolls sideways). Use row
-              checkboxes to assign one category to many transactions at once.
-              Deleted rows are listed below and stay out of totals and insights.
-            </>
-          )}
-        </p>
       </header>
 
       {patchErr ? <p className="error">{patchErr}</p> : null}
@@ -514,7 +423,27 @@ export function BucketList({
             <thead>
               <tr>
                 <th className="col-select">
-                  <span className="sr-only">Select</span>
+                  <input
+                    ref={selectAllRef}
+                    type="checkbox"
+                    checked={allVisibleSelected}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setSelectedIds((prev) => {
+                        const next = new Set(prev);
+                        if (checked) {
+                          for (const id of selectableRowIds) next.add(id);
+                        } else {
+                          for (const id of selectableRowIds) next.delete(id);
+                        }
+                        return next;
+                      });
+                    }}
+                    disabled={
+                      patchingId != null || selectableRowIds.length === 0
+                    }
+                    aria-label="Select all visible rows"
+                  />
                 </th>
                 <th className="col-date">Date</th>
                 <th className="col-desc">Description</th>
